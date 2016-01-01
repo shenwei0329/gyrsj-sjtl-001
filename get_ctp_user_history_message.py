@@ -49,7 +49,7 @@ def do_rec(cur,cur_mysql,in_sql):
             cur_mysql.execute(sql)
 
 tables = [{	"select":"id,sender_id,receiver_id,message_content,creation_date",
-        "table":"ctp_user_history_message where creation_date>=to_date('2015-12-21 00:00:00','yyyy-mm-dd hh24:mi:ss')  order by creation_date",
+        "table":"ctp_user_history_message where creation_date>=to_date('2015-12-28 00:00:00','yyyy-mm-dd hh24:mi:ss')  order by creation_date",
         "mysql_table":'ctp_user_history_message(id,sender_id,receiver_id,message,create_date,flg,summary_id) values(',
     }]
 

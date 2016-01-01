@@ -17,7 +17,7 @@ cur_mysql = utils.mysql_conn()
 oracle_conn = utils.oracle_conn()
 cur_oracle = oracle_conn.cursor()
 
-sql = "SELECT ID,CURRENT_NODES_INFO,state FROM col_summary where (state=3) or (state=0 and case_id is not null ) order by create_date"
+sql = "SELECT ID,CURRENT_NODES_INFO,state FROM col_summary where create_date>=to_date('2015-12-28 00:00:00','yyyy-mm-dd hh24:mi:ss') and ((state=3) or (state=0 and case_id is not null )) order by create_date"
 cur = cur_oracle.execute(sql)
 # 扫描col_summary表
 while 1:
@@ -30,9 +30,13 @@ while 1:
     multi_users = False
     o_current_nodes_info = str(one[1]).split(';')
     if len(o_current_nodes_info)>0:
+
         if len(o_current_nodes_info)>1:
+            # 如果该节点包含多人“竞争”办理，则需要做一个标记
             #print(">>> multi_user <<<")
             multi_users = True
+
+        # 取第一个人员做为下一节点办理人
         o_current_nodes_info = o_current_nodes_info[0]
 
     o_state = str(one[2])
@@ -43,7 +47,7 @@ while 1:
 
     if utils.is_include(cur_mysql,'col_summary',summary_id) != 0:
         # 针对已有的申请单
-        sql = 'select current_nodes_info,pri,subject,line_id,sn,finish_date,state from col_summary where state=0 and id="%s" order by create_date' % summary_id
+        sql = 'select current_nodes_info,pri,subject,line_id,sn,finish_date,state,cnt from col_summary where state=0 and id="%s" order by create_date' % summary_id
         cnt = cur_mysql.execute(sql)
         if cnt>0:
 
@@ -55,8 +59,12 @@ while 1:
             sn = str(one[4])
             finish_date = str(one[5])
             m_state = str(one[6])
+            # 剩余天数
+            m_cnt = str(one[7])
 
             # 判断是否有人员变化
+            # 针对“多人”竞争办理的节点，因为缺省让第一人作为下一节点办理者，这时也许人员不会变化
+            #
             if m_current_nodes_info != o_current_nodes_info:
 
                 # 获得新人员的 岗位ID
@@ -80,9 +88,10 @@ while 1:
                             #
                             flg,current_nodes_info,yw_sn = utils.comp_date(cur_mysql,summary_id)
                             if flg:
+
                                 user_name = utils.get_user_name(cur_mysql,current_nodes_info)
                                 #utils.send_message(cur_mysql,current_nodes_info,("【数据铁笼风险提示】：%s,你在办理《%s》%s前，仍有未办理业务！") % (user_name,m_subject,post_name))
-                                utils.send_alarm(cur_mysql,current_nodes_info,line_id,"【数据铁笼风险提示】：%s,在办理《%s》<%s>%s前，仍有未办理业务！" % (user_name,m_subject,yw_sn,post_name))
+                                utils.send_alarm(cur_mysql,current_nodes_info,summary_id,line_id,"【数据铁笼风险提示】：%s,在办理《%s》<%s>%s前，仍有未办理业务！" % (user_name,m_subject,yw_sn,post_name))
 
                                 # 向上级汇报
                                 members = utils.get_leader(cur_mysql,line_id,sn,0)
@@ -97,22 +106,27 @@ while 1:
                         elif int(o_sn) <= int(m_sn):
                             # 第一种情况：主管领导签字同意后，由科员办结
                             # 第二种情况：处长签字同意后，由科员现场踏勘，有可能是处长去
+
                             if utils.is_wait(cur_oracle,cur_mysql,summary_id):
                                 # 针对劳动派遣的补正情况，领导同意后，回到“初审”节点
                                 if int(m_line_id)==2 and int(m_sn)==4:
+                                    # 针对“劳务派遣”，并分管领导已同意“补正”时
+                                    # 状态应该回到“初审”节点
                                     o_sn = '1'
                             else:
+                                # 如果不需要“补正”，则流程往下走
                                 o_sn = str(int(m_sn)+1)
 
                         # 设置岗位期限
                         post_deadline = utils.get_post_deadline(cur_mysql,o_line_id,o_sn)
                         if post_deadline!=None:
-                            # 更新
+
                             if utils.is_wait(cur_oracle,cur_mysql,summary_id):
                                 # 针对劳动派遣的补正情况，领导同意后，回到“初审”节点
                                 if int(m_line_id)==2 and int(m_sn)==4:
                                     # 补正需要在5天内完成
                                     post_deadline = str(int(post_deadline) + 5)
+
                             #print type(o_current_nodes_info),o_current_nodes_info
                             sql = 'update col_summary set current_nodes_info=%s,cnt=%s where id="%s"' % (o_current_nodes_info,post_deadline,summary_id)
                             #print sql
@@ -133,8 +147,8 @@ while 1:
                             last_ts = int(time.mktime(last_d.timetuple()))/60
 
                             # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
-                            sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime) values("%s","%s",%s,%s,%d)' \
-                                % (m_current_nodes_info,summary_id,line_id,sn,now_ts-last_ts)
+                            sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
+                                % (m_current_nodes_info,summary_id,line_id,sn,now_ts-last_ts,finish_date)
                             cur_mysql.execute(sql)
 
                             sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_d.strftime('%Y-%m-%d %H:%M:%S'),summary_id)
@@ -151,12 +165,48 @@ while 1:
                         % (new_sn,o_state,o_current_nodes_info,summary_id)
                     print sql
                     cur_mysql.execute(sql)
+
+                    # 计算 上一节点操作时间
+                    now_d = datetime.datetime.now()
+                    last_d = datetime.datetime.strptime(finish_date,'%Y-%m-%d %H:%M:%S')
+
+                    # 时间戳（分钟计）
+                    now_ts = int(time.mktime(now_d.timetuple()))/60
+                    last_ts = int(time.mktime(last_d.timetuple()))/60
+
+                    # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
+                    sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
+                            % (m_current_nodes_info,summary_id,line_id,new_sn,now_ts-last_ts,finish_date)
+                    cur_mysql.execute(sql)
+
+                    sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_d.strftime('%Y-%m-%d %H:%M:%S'),summary_id)
+                    cur_mysql.execute(sql)
+
             else:
+                # 如果人员未发生变化
                 if multi_users==True and int(sn)==2:
-                    new_sn = 3
-                    sql = 'update col_summary set sn=%d where id="%s"' \
+                    # 允许多人竞争办理，且当前节点为（复审）时
+                    # 下一节点“强置为”3“，即现场环节
+                    new_sn = '3'
+                    sql = 'update col_summary set sn=%s where id="%s"' \
                         % (new_sn,summary_id)
                     print sql
+                    cur_mysql.execute(sql)
+
+                    # 计算 上一节点操作时间
+                    now_d = datetime.datetime.now()
+                    last_d = datetime.datetime.strptime(finish_date,'%Y-%m-%d %H:%M:%S')
+
+                    # 时间戳（分钟计）
+                    now_ts = int(time.mktime(now_d.timetuple()))/60
+                    last_ts = int(time.mktime(last_d.timetuple()))/60
+
+                    # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
+                    sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
+                            % (m_current_nodes_info,summary_id,line_id,sn,now_ts-last_ts,finish_date)
+                    cur_mysql.execute(sql)
+
+                    sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_d.strftime('%Y-%m-%d %H:%M:%S'),summary_id)
                     cur_mysql.execute(sql)
 
 cur_oracle.close()

@@ -83,7 +83,9 @@ def do_rec(cur,cur_mysql,in_sql):
             else:
                 yw_sn = ""
 
-            # 若这是一个“特权”事件，则需执行其特权行为
+            #--------------------------------------------------
+            # ！！！若这是一个“特权”事件，则需执行其特权行为 ！！！
+            #
             utils.set_summary_pri(cur_mysql,summary_id)
 
             # for resent_time，用于放置 受理时间
@@ -101,6 +103,11 @@ def do_rec(cur,cur_mysql,in_sql):
                     sql = 'update col_summary set resent_time="%s" where id="%s"' % (acc_time,summary_id)
                     #print sql
                     cur_mysql.execute(sql)
+                else:
+                    acc_time = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.time()))
+                    sql = 'update col_summary set resent_time="%s" where id="%s"' % (acc_time,summary_id)
+                    #print sql
+                    cur_mysql.execute(sql)
 
                 # 通过业务线line_id，检查申请是否带齐必要的附件
                 # 如果未带齐，则发出“风险”警告
@@ -113,7 +120,7 @@ def do_rec(cur,cur_mysql,in_sql):
 
                     user_name = utils.get_user_name(cur_mysql,start_member)
 
-                    utils.send_alarm(cur_mysql,start_member,line_id,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时，提交材料存在缺失项，请知悉。" \
+                    utils.send_alarm(cur_mysql,start_member,summary_id,line_id,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时，提交材料存在缺失项，请知悉。" \
                         % (user_name,subject,yw_sn))
 
                     # 向上级汇报
@@ -127,18 +134,36 @@ def do_rec(cur,cur_mysql,in_sql):
 
                 # 检查提交时间start_date与“受理时间”acc_time之间的间隔是否超过一天？
                 # 若超过，则报风险
-                start_d = datetime.datetime.strptime(start_date,"%Y-%m-%d %H:%M:%S")
+                now_d = datetime.datetime.now()
+                if acc_time=="None" or acc_time==None or acc_time=="NONE":
+                    acc_time = now_d.strftime("%Y-%m-%d %H:%M:%S")
                 acc_d = datetime.datetime.strptime(acc_time,"%Y-%m-%d %H:%M:%S")
-                start_ts = int(time.mktime(start_d.timetuple()))
-                acc_ts = int(time.mktime(acc_d.timetuple()))
-                if (start_ts>acc_ts) and (start_ts-acc_ts>(24*3600)):
+
+                # 时间戳（分钟计）
+                now_ts = int(time.mktime(now_d.timetuple()))/60
+                acc_ts = int(time.mktime(acc_d.timetuple()))/60
+
+                # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
+
+                if "(自动发起)" in subject:
+                    sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
+                                % (start_member,summary_id,line_id,1,now_ts-acc_ts,acc_time)
+                else:
+                    sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
+                                % (start_member,summary_id,line_id,0,now_ts-acc_ts,acc_time)
+
+                #sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
+                #            % (start_member,summary_id,line_id,0,now_ts-acc_ts,acc_time)
+                cur_mysql.execute(sql)
+
+                if (now_ts>acc_ts) and ((now_ts-acc_ts)>(24*60)):
 
                     # 提交日期 超过 受理日期 一天以上
                     # 风险提示
 
                     user_name = utils.get_user_name(cur_mysql,start_member)
 
-                    utils.send_alarm(cur_mysql,start_member,line_id,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时超出一天期限，请知悉。" \
+                    utils.send_alarm(cur_mysql,start_member,summary_id,line_id,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时超出一天期限，请知悉。" \
                         % (user_name,subject,yw_sn))
 
                     # 向上级汇报
@@ -146,11 +171,11 @@ def do_rec(cur,cur_mysql,in_sql):
                     members += utils.get_leader(cur_mysql,line_id,0,1)
                     for member in members:
                         leader_name = utils.get_user_name(cur_mysql,member)
-                        utils.send_info(cur_mysql,member,"【数据铁笼风险通报】%s，好：%s在受理《%s》时，超出一天期限，请知悉。" \
+                        utils.send_info(cur_mysql,member,"【数据铁笼风险通报】%s，好：%s在受理《%s》时，超出岗位工作期限，请知悉。" \
                             % (leader_name,user_name,subject))
 
                     # 需要根据此情况调整 deadline 的值
-                    n = 8 - (start_ts-acc_ts)/(24*3600)
+                    n = 8 - (now_ts-acc_ts)/(24*60)
                     sql = 'update col_summary set deadline=%d where id="%s"' % (n,summary_id)
                     cur_mysql.execute(sql)
 
@@ -164,7 +189,7 @@ def do_rec(cur,cur_mysql,in_sql):
 #
 tables = [dict(
     select="ID,STATE,SUBJECT,DEADLINE,RESENT_TIME,CREATE_DATE,START_DATE,FINISH_DATE,START_MEMBER_ID,FORWARD_MEMBER,FORM_RECORDID,FORMID,FORM_APPID,ORG_DEPARTMENT_ID,VOUCH,OVER_WORKTIME,RUN_WORKTIME,OVER_TIME,RUN_TIME,CURRENT_NODES_INFO",
-    table="col_summary where create_date>=to_date('2015-12-21 00:00:00','yyyy-mm-dd hh24:mi:ss') and  ((state=3) or (state=0 and case_id is not null )) order by create_date",
+    table="col_summary where create_date>=to_date('2015-12-28 00:00:00','yyyy-mm-dd hh24:mi:ss') and  ((state=3) or (state=0 and case_id is not null )) order by create_date",
     mysql_table='col_summary(ID,STATE,SUBJECT,DEADLINE,RESENT_TIME,CREATE_DATE,START_DATE,FINISH_DATE,START_MEMBER_ID,FORWARD_MEMBER,FORM_RECORDID,FORMID,FORM_APPID,ORG_DEPARTMENT_ID,VOUCH,OVER_WORKTIME,RUN_WORKTIME,OVER_TIME,RUN_TIME,CURRENT_NODES_INFO,cnt,line_id,sn,pri) values(')]
 
 cur_mysql = utils.mysql_conn()

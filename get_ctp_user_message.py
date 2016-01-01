@@ -24,7 +24,12 @@ def get_summary_id_by_subject(cur,text):
     return None
 
 def do_rec(cur,cur_mysql,in_sql):
+
     while 1:
+
+        text = ''
+        create_date = '2000-01-01 00:00:00'
+
         out_flg = False
         id = ''
         one = cur.fetchone()
@@ -74,17 +79,17 @@ def do_rec(cur,cur_mysql,in_sql):
         if utils.is_include(cur_mysql,'ctp_user_message',id)==0:
 
             # 问题：即使ID不同，也会有很多内容相同的信息，也应该滤去
-            sql1 = 'select * from ctp_user_message where message="%s" and create_date="%s"' % (text, create_date)
-            cnt = cur_mysql.execute(sql1)
-            if cnt > 0:
-                continue
+            #sql1 = 'select * from ctp_user_message where message="%s" and create_date="%s"' % (text, create_date)
+            #cnt = cur_mysql.execute(sql1)
+            #if cnt > 0:
+            #    continue
 
             #print("++++")
             #print(sql)
             cur_mysql.execute(sql)
 
 tables = [{	"select":"id,sender_id,message_content,creation_date",
-        "table":"ctp_user_message where creation_date>=to_date('2015-12-21 00:00:00','yyyy-mm-dd hh24:mi:ss') order by creation_date",
+        "table":"ctp_user_message where creation_date>=to_date('2015-12-28 00:00:00','yyyy-mm-dd hh24:mi:ss') order by creation_date",
         "mysql_table":'ctp_user_message(id,sender_id,message,create_date,flg,summary_id) values(',
     }]
 
