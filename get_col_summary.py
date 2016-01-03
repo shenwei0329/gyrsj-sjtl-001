@@ -144,13 +144,14 @@ def do_rec(cur,cur_mysql,in_sql):
                 acc_ts = int(time.mktime(acc_d.timetuple()))/60
 
                 # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
+                min_cnt = utils.cal_workdays(cur_mysql,acc_time,now_d.strftime('%Y-%m-%d %H:%M:%S'))
 
                 if "(自动发起)" in subject:
                     sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
-                                % (start_member,summary_id,line_id,1,now_ts-acc_ts,acc_time)
+                                % (start_member,summary_id,line_id,1,min_cnt,acc_time)
                 else:
                     sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
-                                % (start_member,summary_id,line_id,0,now_ts-acc_ts,acc_time)
+                                % (start_member,summary_id,line_id,0,min_cnt,acc_time)
 
                 #sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
                 #            % (start_member,summary_id,line_id,0,now_ts-acc_ts,acc_time)
