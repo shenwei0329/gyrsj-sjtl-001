@@ -1467,8 +1467,8 @@ def cal_workdays(cur_mysql,start_date,end_date):
     else:
         dlt_t2 = 3*3600 + (end_d - datetime.datetime(end_d.year,end_d.month,end_d.day,13,0,0,0)).seconds
 
-    # 计算总花费时间（分钟）
-    dlt_time = (dlt_t1 + dlt_t2)/60 + nd*24*60
+    # 计算总花费时间（分钟），每天按7.5小时计
+    dlt_time = (dlt_t1 + dlt_t2)/60 + nd*75*6
 
     return dlt_time
 
