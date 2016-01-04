@@ -139,19 +139,15 @@ while 1:
                             #utils.set_timer(cur_mysql,id)
 
                             # 计算 上一节点操作时间
-                            now_d = datetime.datetime.now()
-                            last_d = datetime.datetime.strptime(finish_date,'%Y-%m-%d %H:%M:%S')
-
-                            # 时间戳（分钟计）
-                            now_ts = int(time.mktime(now_d.timetuple()))/60
-                            last_ts = int(time.mktime(last_d.timetuple()))/60
+                            now_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            min_cnt = utils.cal_workdays(cur_mysql,finish_date,now_datetime)
 
                             # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
                             sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
-                                % (m_current_nodes_info,summary_id,line_id,sn,now_ts-last_ts,finish_date)
+                                % (m_current_nodes_info,summary_id,line_id,sn,min_cnt,finish_date)
                             cur_mysql.execute(sql)
 
-                            sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_d.strftime('%Y-%m-%d %H:%M:%S'),summary_id)
+                            sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_datetime,summary_id)
                             cur_mysql.execute(sql)
 
                 else:
@@ -167,19 +163,15 @@ while 1:
                     cur_mysql.execute(sql)
 
                     # 计算 上一节点操作时间
-                    now_d = datetime.datetime.now()
-                    last_d = datetime.datetime.strptime(finish_date,'%Y-%m-%d %H:%M:%S')
-
-                    # 时间戳（分钟计）
-                    now_ts = int(time.mktime(now_d.timetuple()))/60
-                    last_ts = int(time.mktime(last_d.timetuple()))/60
+                    now_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    min_cnt = utils.cal_workdays(cur_mysql,finish_date,now_datetime)
 
                     # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
                     sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
-                            % (m_current_nodes_info,summary_id,line_id,new_sn,now_ts-last_ts,finish_date)
+                            % (m_current_nodes_info,summary_id,line_id,new_sn,min_cnt,finish_date)
                     cur_mysql.execute(sql)
 
-                    sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_d.strftime('%Y-%m-%d %H:%M:%S'),summary_id)
+                    sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_datetime,summary_id)
                     cur_mysql.execute(sql)
 
             else:
@@ -194,19 +186,15 @@ while 1:
                     cur_mysql.execute(sql)
 
                     # 计算 上一节点操作时间
-                    now_d = datetime.datetime.now()
-                    last_d = datetime.datetime.strptime(finish_date,'%Y-%m-%d %H:%M:%S')
-
-                    # 时间戳（分钟计）
-                    now_ts = int(time.mktime(now_d.timetuple()))/60
-                    last_ts = int(time.mktime(last_d.timetuple()))/60
+                    now_datetime = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    min_cnt = utils.cal_workdays(cur_mysql,finish_date,now_datetime)
 
                     # 记录 某人 在 该业务线节点上 处理申报所占用时间 now_ts - last_ts
                     sql = 'insert into kpi_001(member,summary_id,line_id,sn,dtime,start_date) values("%s","%s",%s,%s,%d,"%s")' \
-                            % (m_current_nodes_info,summary_id,line_id,sn,now_ts-last_ts,finish_date)
+                            % (m_current_nodes_info,summary_id,line_id,sn,min_cnt,finish_date)
                     cur_mysql.execute(sql)
 
-                    sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_d.strftime('%Y-%m-%d %H:%M:%S'),summary_id)
+                    sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_datetime,summary_id)
                     cur_mysql.execute(sql)
 
 cur_oracle.close()

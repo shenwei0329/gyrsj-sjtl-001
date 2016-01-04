@@ -519,10 +519,20 @@ insert into worktime_mx(cur,s_h,e_h,nday,lvl,cnt,flg) values(15, 0,10,1,1,1,1); 
 insert into worktime_mx(cur,s_h,e_h,nday,lvl,cnt,flg) values(16,10,11,1,1,1,0);
 
 create TABLE kpi_001 (
-  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  member bigint,
-  summary_id bigint,
-  line_id int,
-  sn int,
-  dtime int
+  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- 结束时间
+  member bigint, -- 人员ID
+  summary_id bigint, -- 事务ID
+  line_id int, -- 业务线
+  sn int, -- 节点
+  dtime int, -- 用时（分钟）
+  start_date datetime -- 起始时间
 ) default charset=utf8;
+
+-- 用于关联“业务流水号”和业务事件
+--
+create TABLE event_main (
+  id  int primary key not null auto_increment,
+  yw_sn varchar(80), -- 业务流水号
+  summary_id bigint -- 业务事件ID
+) default charset=utf8;
+
