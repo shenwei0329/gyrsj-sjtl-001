@@ -14,13 +14,22 @@ create TABLE leader (
 ) default charset=utf8;
 
 -- 业务线、节点上的上级人员
+-- 政务大厅 负责人：杨建
+insert into leader(line_id,sn,member) values(1,0,"2605449744421242830");
+-- 初审、办结环节 负责人：王安安
 insert into leader(line_id,sn,member) values(1,1,"4876746049514849965");
 insert into leader(line_id,sn,member) values(1,4,"4876746049514849965");
+-- 复审环节 负责人：路林
 insert into leader(line_id,sn,member) values(1,2,"-913621547074565894");
+
+-- 政务大厅 负责人：杨建
+insert into leader(line_id,sn,member) values(2,0,"2605449744421242830");
+-- 初审、现场、办结环节 负责人：张文忠
 insert into leader(line_id,sn,member) values(2,1,"1620419065382521819");
-insert into leader(line_id,sn,member) values(2,2,"-7174564612394366732");
 insert into leader(line_id,sn,member) values(2,3,"1620419065382521819");
 insert into leader(line_id,sn,member) values(2,5,"1620419065382521819");
+-- 复审环节 负责人：卢祝新
+insert into leader(line_id,sn,member) values(2,2,"-7174564612394366732");
 
 -- 纪检监察室
 -- 纪检书记
@@ -198,26 +207,48 @@ insert into post_deadline(line_id,post_sn,deadline) values(2,5,1);
 -- 岗位明细 2015-12-16
 -- 因一个业务线的环节上可以有多人“竞争”办理
 create table post_rec ( line_id int, unit_id bigint, post_id bigint, sn int) default charset=utf8;
+
+-- 公勤人员
 INSERT INTO post_rec VALUES ('1', '4114528878294287249', '8341470715773930046', '0');
+-- 政务大厅窗口
 INSERT INTO post_rec VALUES ('1', '4114528878294287249', '4355950963446468199', '0');
+-- 人力资源市场处副主任科员
 INSERT INTO post_rec VALUES ('1', '4809355253136572482', '-6142181662985010204', '1');
+-- 人力资源市场处科员
 INSERT INTO post_rec VALUES ('1', '4809355253136572482', '-6257008799918832760', '1');
+-- 人力资源市场处处长
 INSERT INTO post_rec VALUES ('1', '4809355253136572482', '-5273152026133969439', '2');
+-- 机关党委书记、党委委员
 INSERT INTO post_rec VALUES ('1', '5745107157522860074', '-1228241534544558833', '3');
+-- 人力资源市场处副主任科员
 INSERT INTO post_rec VALUES ('1', '4809355253136572482', '-6142181662985010204', '4');
+-- 人力资源市场处科员
 INSERT INTO post_rec VALUES ('1', '4809355253136572482', '-6257008799918832760', '4');
-INSERT INTO post_rec VALUES ('2', '4114528878294287249', '8341470715773930046', '0');
-INSERT INTO post_rec VALUES ('2', '4114528878294287249', '4355950963446468199', '0');
-INSERT INTO post_rec VALUES ('2', '9116165337005639259', '-3878161648001595846', '1');
-INSERT INTO post_rec VALUES ('2', '9116165337005639259', '1029063431013876529', '2');
-INSERT INTO post_rec VALUES ('2', '9116165337005639259', '-3878161648001595846', '3');
-INSERT INTO post_rec VALUES ('2', '5745107157522860074', '5650735151785788005', '4');
-INSERT INTO post_rec VALUES ('2', '9116165337005639259', '-3878161648001595846', '5');
-INSERT INTO post_rec VALUES ('2', '4114528878294287249', '8341470715773930046', '5');
+-- 公勤人员
 INSERT INTO post_rec VALUES ('1', '4114528878294287249', '8341470715773930046', '4');
+-- 政务大厅窗口
 INSERT INTO post_rec VALUES ('1', '4114528878294287249', '4355950963446468199', '4');
-INSERT INTO post_rec VALUES ('2', '4114528878294287249', '4355950963446468199', '5');
+
+-- 公勤人员
+INSERT INTO post_rec VALUES ('2', '4114528878294287249', '8341470715773930046', '0');
+-- 政务大厅窗口
+INSERT INTO post_rec VALUES ('2', '4114528878294287249', '4355950963446468199', '0');
+-- 劳动关系处科员
+INSERT INTO post_rec VALUES ('2', '9116165337005639259', '-3878161648001595846', '1');
+-- 劳动关系处处长
+INSERT INTO post_rec VALUES ('2', '9116165337005639259', '1029063431013876529', '2');
+-- 劳动关系处科员
+INSERT INTO post_rec VALUES ('2', '9116165337005639259', '-3878161648001595846', '3');
+-- 劳动关系处处长
 INSERT INTO post_rec VALUES ('2', '9116165337005639259', '1029063431013876529', '3');
+-- 副局长
+INSERT INTO post_rec VALUES ('2', '5745107157522860074', '5650735151785788005', '4');
+-- 劳动关系处科员
+INSERT INTO post_rec VALUES ('2', '9116165337005639259', '-3878161648001595846', '5');
+-- 公勤人员
+INSERT INTO post_rec VALUES ('2', '4114528878294287249', '8341470715773930046', '5');
+-- 政务大厅窗口
+INSERT INTO post_rec VALUES ('2', '4114528878294287249', '4355950963446468199', '5');
 
 -- 定义岗位
 -- 将这个表中的line_id,unit_id,post_id,sn关联移到post_rec表
