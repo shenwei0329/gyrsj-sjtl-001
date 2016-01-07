@@ -695,7 +695,7 @@ def new_day(cur_mysql,cur_mysql1):
             subject = str(one[2])
             summary_id = str(one[3])
 
-            if ("人力资源" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
+            if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
                 summary_cnt -= 1
                 summary_deadline -= 1
@@ -793,7 +793,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                     if resent_time=="None" or resent_time=="NONE":
                         continue
 
-                    if ("人力资源" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
+                    if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
                         # 时间间隔在同一天
                         d = datetime.datetime.strptime(resent_time,"%Y-%m-%d %H:%M:%S")
@@ -837,7 +837,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
         line_id = str(one[4])
         sn = str(one[5])
 
-        if (("人力资源" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject)) and resent_time!="None":
+        if (("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject)) and resent_time!="None":
 
             d = datetime.datetime.strptime(resent_time,"%Y-%m-%d %H:%M:%S")
             if (now.hour-d.hour)==1:
@@ -868,7 +868,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
         resent_time = str(one[1])
         line_id = str(one[2])
 
-        if ("人力资源" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
+        if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
             d = datetime.datetime.strptime(resent_time,"%Y-%m-%d %H:%M:%S")
             if (now.hour-d.hour)==0:
@@ -876,8 +876,8 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                 # 告知科室处长
                 members = get_leader(cur_mysql1,line_id,1,0)
                 for member in members:
-                    send_info(cur_mysql1,member,"【数据铁笼风险提示】：处室在办理《%s》%s时，离总期限还有一天时间，请知悉。" \
-                        % (subject,post_name))
+                    send_info(cur_mysql1,member,"【数据铁笼风险提示】：处室在办理《%s》时，离总期限还有一天时间，请知悉。" \
+                        % (subject))
 
     sql = 'select subject,resent_time,id,line_id from col_summary where deadline=0 and state=0 and line_id>0 order by start_date'
     cnt = cur_mysql.execute(sql)
@@ -889,7 +889,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
         summary_id = str(one[2])
         line_id = str(one[3])
 
-        if ("人力资源" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
+        if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
             d = datetime.datetime.strptime(resent_time,"%Y-%m-%d %H:%M:%S")
             if (now.hour-d.hour)==1:
@@ -897,15 +897,15 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                 # 通知处室处长
                 members = get_leader(cur_mysql1,line_id,1,0)
                 for member in members:
-                    send_alarm(cur_mysql1,member,summary_id,line_id,"【数据铁笼风险提示】：处室在办理《%s》%s时，总期限已超期，请知悉。" \
-                        % (subject,post_name))
+                    send_alarm(cur_mysql1,member,summary_id,line_id,"【数据铁笼风险提示】：处室在办理《%s》时，总期限已超期，请知悉。" \
+                        % (subject))
 
                 # 向上级汇报
                 members = get_leader(cur_mysql1,line_id,1,1)
                 for member in members:
                     leader_name = get_user_name(cur_mysql1,member)
-                    send_info(cur_mysql1,member,"【数据铁笼风险通报】%s，好：处室在办的《%s》%s已超出总期限要求，请知悉。" \
-                        % (leader_name,subject,post_name))
+                    send_info(cur_mysql1,member,"【数据铁笼风险通报】%s，好：处室在办的《%s》已超出总期限要求，请知悉。" \
+                        % (leader_name,subject))
 
                 sql = 'update col_summary set deadline=-1 where id="%s"' % summary_id
                 cur_mysql1.execute(sql)
@@ -946,7 +946,7 @@ def half_day(cur_mysql,cur_mysql1):
             line_id = str(one[3])
             sn = str(one[4])
 
-            if ("人力资源" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
+            if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
                 if summary_cnt==0:
                     # 该业务快要超期了
