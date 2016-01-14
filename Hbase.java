@@ -16,6 +16,12 @@ import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Scan;
 import org.apache.hadoop.hbase.util.Bytes;
 
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.Statement;
+
 public class Hbase {
     // 声明静态配置
     static Configuration conf = null;
@@ -109,6 +115,33 @@ public class Hbase {
             System.out.println("value:" + Bytes.toString(kv.getValue()));
             System.out.println("Timestamp:" + kv.getTimestamp());
             System.out.println("-------------------------------------------");
+        }
+        return result;
+    }
+
+    /*
+     * 根据rwokey查询
+     * 
+     * @rowKey rowKey
+     * 
+     * @tableName 表名
+     *
+     * @Family 列名
+     *
+     */
+    public static Result getResultWithFamily(String tableName, String rowKey, String Family)
+            throws IOException {
+        Get get = new Get(Bytes.toBytes(rowKey));
+        HTable table = new HTable(conf, Bytes.toBytes(tableName));// 获取表
+        Result result = table.get(get);
+        for (KeyValue kv : result.list()) {
+            if (Bytes.toString(kv.getFamily()).equals(Family)) {
+                System.out.println("family:" + Bytes.toString(kv.getFamily()));
+                System.out.println("qualifier:" + Bytes.toString(kv.getQualifier()));
+                System.out.println("value:" + Bytes.toString(kv.getValue()));
+                System.out.println("Timestamp:" + kv.getTimestamp());
+                System.out.println("-------------------------------------------");
+            }
         }
         return result;
     }
@@ -306,10 +339,35 @@ public class Hbase {
 
     public static void main(String[] args) throws Exception {
 
+        // mysql
+        Connection conn = null;
+        String sql;
+
+        String url = "jdbc:mysql://master:3306/gyrsj?user=root&password=sw64419&useUnicode=true&characterEncoding=UTF8";
+        try {
+            Class.forName("com.mysql.jdbc.Driver");
+            System.out.println("...Loading MySQL Driver OK");
+            conn = DriverManager.getConnection(url);
+            Statement stmt = conn.createStatement();
+            sql = "select id,name from org_member";
+            ResultSet rs = stmt.executeQuery(sql);
+            System.out.println("Name:");
+            while (rs.next()) {
+                System.out.println(rs.getString(1)+" : "+rs.getString(2));
+            }
+        } catch (SQLException e) {
+            System.out.println("MySQL op. Error!");
+            e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            conn.close();
+        }
+
         // 创建表
         String tableName = "blog2";
         String[] family = { "article", "author" };
-        creatTable(tableName, family);
+        //creatTable(tableName, family);
 
         // 为表添加数据
 
@@ -320,29 +378,32 @@ public class Hbase {
                 "Hadoop,HBase,NoSQL" };
         String[] column2 = { "name", "nickname" };
         String[] value2 = { "nicholas", "lee" };
-        addData("rowkey1", "blog2", column1, value1, column2, value2);
-        addData("rowkey2", "blog2", column1, value1, column2, value2);
-        addData("rowkey3", "blog2", column1, value1, column2, value2);
+        //addData("rowkey1", "blog2", column1, value1, column2, value2);
+        //addData("rowkey2", "blog2", column1, value1, column2, value2);
+        //addData("rowkey3", "blog2", column1, value1, column2, value2);
 
         // 遍历查询
-        getResultScann("blog2", "rowkey4", "rowkey5");
+        System.out.println("=====================================");
+        getResultScann("member", "A","z");
         // 根据row key范围遍历查询
-        getResultScann("blog2", "rowkey4", "rowkey5");
+        //getResultScann("blog2", "rowkey4", "rowkey5");
+        System.out.println("=====================================");
 
         // 查询
-        getResult("blog2", "rowkey1");
+        //getResult("member", "shenwei");
+        getResultWithFamily("member", "shenwei","login");
 
         // 查询某一列的值
-        getResultByColumn("blog2", "rowkey1", "author", "name");
+        //getResultByColumn("blog2", "rowkey1", "author", "name");
 
         // 更新列
-        updateTable("blog2", "rowkey1", "author", "name", "bin");
+        //updateTable("blog2", "rowkey1", "author", "name", "bin");
 
         // 查询某一列的值
-        getResultByColumn("blog2", "rowkey1", "author", "name");
+        //getResultByColumn("blog2", "rowkey1", "author", "name");
 
         // 查询某列的多版本
-        getResultByVersion("blog2", "rowkey1", "author", "name");
+        //getResultByVersion("blog2", "rowkey1", "author", "name");
 
         // 删除一列
         //deleteColumn("blog2", "rowkey1", "author", "nickname");
