@@ -13,6 +13,8 @@
 import cx_Oracle
 import MySQLdb
 
+import uuid
+
 # 引入系统模块
 import os,sys,time,datetime
 
@@ -1471,6 +1473,83 @@ def cal_workdays(cur_mysql,start_date,end_date):
     dlt_time = (dlt_t1 + dlt_t2)/60 + nd*75*6
 
     return dlt_time
+
+# 业务日志
+# yw_sn：业务流水号
+# summary_id：申请摘要ID
+# member_id：办理人ID
+# sn：节点ID
+# start_date：起始时间
+# end_date：结束时间
+# dlt_time：用时（分钟）
+#
+def yw_log(cur_mysql,summary_id,member_id,sn,start_date,end_date,dlt_time):
+
+    # 获取关联ID
+    _uuid = create_UUID()
+
+    # 根据协同摘要 获取 业务主题、业务线、业务流水号
+    sql = 'select subject,line_id,yw_sn from col_summary where id="%s"' % summary_id
+    cnt = cur_mysql.execute(sql)
+    if cnt>0:
+        one = cur_mysql.fetchone()
+        subject = str(one[0])
+        line_id = str(one[1])
+        yw_sn = str(one[2])
+
+        # 获取 人员名称、岗位名称
+        sql = 'select a.name,b.name from org_member a, org_post b where a.id="%s" and b.id=a.org_postid' % member_id
+        cnt = cur_mysql.execute(sql)
+        if cnt>0:
+            one = cur_mysql.fetchone()
+            member = str(one[0])
+            post = str(one[1])
+
+            # 获取 业务线节点 名称
+            sql = 'select info from sn_desc where line_id=%s and id=%s' % (line_id,str(sn))
+            cnt = cur_mysql.execute(sql)
+            if cnt>0:
+                one = cur_mysql.fetchone()
+                sn_info = str(one[0])
+
+                # 获取 业务线节点 时限
+                sql = 'select deadline from post_deadline where line_id=%s and post_sn=%s' % \
+                      (line_id,str(sn))
+                cnt = cur_mysql.execute(sql)
+                if cnt>0:
+                    one = cur_mysql.fetchone()
+                    dl = int(one[0])
+                    dlt_rate = dlt_time*100/(dl*75*6)
+                    # 添加 工作流日志记录
+                    sql = 'insert into wf_log(uuid,sn,member,post,subject,start_date,end_date,dlt_time,dlt_rate) ' \
+                          'value ("%s","%s","%s","%s","%s","%s","%s",%s,%s)' % \
+                            (_uuid,sn_info,member,post,subject,start_date,end_date,dlt_time,dlt_rate)
+                    cur_mysql.execute(sql)
+
+                    # 加入到 业务流水日志
+                    sql = 'insert into sn_log(yw_sn,uuid,flg) value("%s","%s",%d)' % (yw_sn,_uuid,0)
+                    # 加入到 人员日志
+                    sql = 'insert into member_log(member_id,uuid,flg) value("%s","%s",%d)' % (member_id,_uuid,0)
+    return
+
+# 风险预警、告警日志
+#
+def warn_log():
+
+    _uuid = create_UUID()
+
+    return
+
+# 特权日志
+#
+def pri_log():
+
+    _uuid = create_UUID()
+
+    return
+
+def create_UUID():
+    return str(uuid.uuid4())
 
 #
 # Eof

@@ -60,6 +60,7 @@ def do_rec(cur,cur_mysql,in_sql):
         # 设定岗位期限为8天
         sql += ",8,"
         if utils.is_include(cur_mysql,'col_summary',summary_id)==0:
+
             print("++++")
             # 2015-12-19: 新加入的summary没有优先办理特权
             if line_id!=None:
@@ -89,14 +90,16 @@ def do_rec(cur,cur_mysql,in_sql):
             utils.set_summary_pri(cur_mysql,summary_id)
 
             # for resent_time，用于放置 受理时间
-            if ("人力资源" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject) and line_id is not None:
+            if (("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject)) and (line_id is not None):
 
+                # 获取业务节点（受理）期限（天）
                 nday = utils.get_post_deadline(cur_mysql,line_id,1)
                 if nday is not None:
                     sql = 'update col_summary set cnt="%s" where id="%s"' % (nday,summary_id)
                     #print sql
                     cur_mysql.execute(sql)
 
+                # 获取该申请的受理时间
                 acc_time = utils.get_summary_feild_value(cur_mysql,summary_id,"受理时间")
                 #print(">>>受理时间:%s" % val )
                 if acc_time is not None:
@@ -104,6 +107,7 @@ def do_rec(cur,cur_mysql,in_sql):
                     #print sql
                     cur_mysql.execute(sql)
                 else:
+                    # 若无受理时间，则认为是当前时间
                     acc_time = time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(time.time()))
                     sql = 'update col_summary set resent_time="%s" where id="%s"' % (acc_time,summary_id)
                     #print sql
@@ -157,6 +161,9 @@ def do_rec(cur,cur_mysql,in_sql):
                 #            % (start_member,summary_id,line_id,0,now_ts-acc_ts,acc_time)
                 cur_mysql.execute(sql)
 
+                # 添加 业务日志
+                utils.yw_log(cur_mysql,summary_id,start_member,0,start_date,now_d.strftime('%Y-%m-%d %H:%M:%S'),min_cnt)
+
                 if (now_ts>acc_ts) and ((now_ts-acc_ts)>(24*60)):
 
                     # 提交日期 超过 受理日期 一天以上
@@ -181,6 +188,7 @@ def do_rec(cur,cur_mysql,in_sql):
                     cur_mysql.execute(sql)
 
                 # 设置第一个时间点
+                # 把finish_date用于记录本节点的完成时间
                 #
                 now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 sql = 'update col_summary set finish_date="%s" where id="%s"' % (now,summary_id)

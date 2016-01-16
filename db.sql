@@ -559,11 +559,67 @@ create TABLE kpi_001 (
   start_date datetime -- 起始时间
 ) default charset=utf8;
 
--- 用于关联“业务流水号”和业务事件
+create TABLE line_desc (
+  id int primary key not null, -- 业务线ID
+  info varchar(80) -- 业务线说明
+) default charset=utf8;
+
+insert into line_desc(id,info) values(1,'人力资源服务许可'),(2,'劳务派遣行政许可');
+
+create TABLE sn_desc (
+ line_id int, -- 业务线 节点编号
+ id int primary key(id,line_id) not null, -- 业务线ID
+ info varchar(80) -- 说明
+)
+
+insert into line_desc(line_id,id,info) values (1,0,'受理'),(1,1,'初审'),(1,2,'复审'),(1,3,'审批'),(1,4,'办结');
+insert into line_desc(line_id,id,info) values (2,0,'受理'),(2,1,'初审'),(2,2,'复审'),(2,3,'现场'),(2,4,'审批'),(2,5,'办结');
+
+-- 业务流水日志
+-- 以“流水号”为基准，按时间轴把过程中出现的每一个事件每都记录起来
 --
-create TABLE event_main (
-  id  int primary key not null auto_increment,
-  yw_sn varchar(80), -- 业务流水号
-  summary_id bigint -- 业务事件ID
+create TABLE sn_log (
+  yw_sn varchar(80), -- 事件对象
+  uuid  varchar(80) primary key(yw_sn,uuid) not null,
+  flg int, -- 0：工作流；1：预警；2：风险；3：特权
+  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- 事件时间轴
+) default charset=utf8;
+
+-- 人员日志
+-- 以“人员”为基准，按时间轴把过程中出现的每一个事件每都记录起来
+--
+create TABLE member_log (
+  member_id bigint, -- 人员ID
+  uuid  varchar(80) primary key(member,uuid) not null,
+  flg int, -- 0：工作流；1：预警；2：风险；3：特权
+  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- 事件时间轴
+) default charset=utf8;
+
+-- 工作流日志
+--
+create TABLE wf_log (
+  uuid varchar(80),
+  sn varchar(80), -- 业务线的节点名称
+  member varchar(80), -- 办理人员名称
+  post varchar(80), -- 人员岗位名称
+  subject varchar(80), -- 主题
+  start_date datetime, -- 起始时间
+  end_date datetime, -- 完成时间
+  dlt_time int, -- 耗时（分钟）
+  dlt_rate int -- 与期限要求的比值，dlt_time*100/期限要求（分钟），例如120（2小时）*100/480（8小时）=25
+) default charset=utf8;
+
+-- 预警、风险日志
+create TABLE warn_log (
+  uuid varchar(80),
+  message varchar(255) -- 信息
+) default charset=utf8;
+
+-- 特权日志
+create TABLE pri_log (
+  uuid varchar(80),
+  member varchar(80), -- 特权人名称
+  post varchar(80), -- 特权人岗位名称
+  message varchar(255) -- 信息
 ) default charset=utf8;
 

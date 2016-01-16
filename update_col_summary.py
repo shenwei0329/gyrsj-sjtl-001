@@ -150,6 +150,9 @@ while 1:
                             sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_datetime,summary_id)
                             cur_mysql.execute(sql)
 
+                            # 添加 业务日志
+                            utils.yw_log(cur_mysql,summary_id,m_current_nodes_info,sn,finish_date,now_datetime,min_cnt)
+
                 else:
                     # 置为最后的岗位
                     # 2015-12-25：针对撤销协同行为的处理？
@@ -174,6 +177,9 @@ while 1:
                     sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_datetime,summary_id)
                     cur_mysql.execute(sql)
 
+                    # 添加 业务日志
+                    utils.yw_log(cur_mysql,summary_id,m_current_nodes_info,sn,finish_date,now_datetime,min_cnt)
+
             else:
                 # 如果人员未发生变化
                 if multi_users==True and int(sn)==2:
@@ -196,6 +202,9 @@ while 1:
 
                     sql = 'update col_summary set finish_date="%s" where id="%s"' % (now_datetime,summary_id)
                     cur_mysql.execute(sql)
+
+                    # 添加 业务日志
+                    utils.yw_log(cur_mysql,summary_id,m_current_nodes_info,sn,finish_date,now_datetime,min_cnt)
 
 cur_oracle.close()
 cur_mysql.close()
