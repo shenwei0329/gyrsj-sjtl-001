@@ -87,7 +87,7 @@ def do_rec(cur,cur_mysql,in_sql):
             #--------------------------------------------------
             # ！！！若这是一个“特权”事件，则需执行其特权行为 ！！！
             #
-            utils.set_summary_pri(cur_mysql,summary_id)
+            utils.set_summary_pri(cur_mysql,summary_id,yw_sn,start_member)
 
             # for resent_time，用于放置 受理时间
             if (("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject)) and (line_id is not None):
@@ -124,7 +124,7 @@ def do_rec(cur,cur_mysql,in_sql):
 
                     user_name = utils.get_user_name(cur_mysql,start_member)
 
-                    utils.send_alarm(cur_mysql,start_member,summary_id,line_id,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时，提交材料存在缺失项，请知悉。" \
+                    utils.send_alarm(cur_mysql,start_member,summary_id,line_id,yw_sn,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时，提交材料存在缺失项，请知悉。" \
                         % (user_name,subject,yw_sn))
 
                     # 向上级汇报
@@ -171,7 +171,7 @@ def do_rec(cur,cur_mysql,in_sql):
 
                     user_name = utils.get_user_name(cur_mysql,start_member)
 
-                    utils.send_alarm(cur_mysql,start_member,summary_id,line_id,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时超出一天期限，请知悉。" \
+                    utils.send_alarm(cur_mysql,start_member,summary_id,line_id,yw_sn,"【数据铁笼风险提示】：%s，在受理《%s》<%s>时超出一天期限，请知悉。" \
                         % (user_name,subject,yw_sn))
 
                     # 向上级汇报

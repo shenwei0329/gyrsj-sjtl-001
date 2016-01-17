@@ -47,7 +47,7 @@ while 1:
 
     if utils.is_include(cur_mysql,'col_summary',summary_id) != 0:
         # 针对已有的申请单
-        sql = 'select current_nodes_info,pri,subject,line_id,sn,finish_date,state,cnt from col_summary where state=0 and id="%s" order by create_date' % summary_id
+        sql = 'select current_nodes_info,pri,subject,line_id,sn,finish_date,state,cnt,yw_sn from col_summary where state=0 and id="%s" order by create_date' % summary_id
         cnt = cur_mysql.execute(sql)
         if cnt>0:
 
@@ -61,6 +61,7 @@ while 1:
             m_state = str(one[6])
             # 剩余天数
             m_cnt = str(one[7])
+            yw_sn = str(one[8])
 
             # 判断是否有人员变化
             # 针对“多人”竞争办理的节点，因为缺省让第一人作为下一节点办理者，这时也许人员不会变化
@@ -91,7 +92,7 @@ while 1:
 
                                 user_name = utils.get_user_name(cur_mysql,current_nodes_info)
                                 #utils.send_message(cur_mysql,current_nodes_info,("【数据铁笼风险提示】：%s,你在办理《%s》%s前，仍有未办理业务！") % (user_name,m_subject,post_name))
-                                utils.send_alarm(cur_mysql,current_nodes_info,summary_id,line_id,"【数据铁笼风险提示】：%s,在办理《%s》<%s>%s前，仍有未办理业务！" % (user_name,m_subject,yw_sn,post_name))
+                                utils.send_alarm(cur_mysql,current_nodes_info,summary_id,line_id,yw_sn,"【数据铁笼风险提示】：%s,在办理《%s》<%s>%s前，仍有未办理业务！" % (user_name,m_subject,yw_sn,post_name))
 
                                 # 向上级汇报
                                 members = utils.get_leader(cur_mysql,line_id,sn,0)

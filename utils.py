@@ -404,7 +404,7 @@ def get_sn(cur_mysql,summary_id):
     return val
 
 # 向OA发信息
-def send_message(cur_mysql,user_id,message):
+def send_message(cur_mysql,user_id,yw_sn,message):
 
     #print(">>>send_message[%s]" % message)
     sql = 'select value from sys_info where name="oa_appserver_ip"'
@@ -434,6 +434,8 @@ def send_message(cur_mysql,user_id,message):
                 warn_cnt = int(str(one[0]))+1
                 sql = 'update post set warn_cnt=%d where line_id=%s and sn=%s' % (warn_cnt,line_id,sn)
                 cur_mysql.execute(sql)
+
+                warn_log(cur_mysql,user_id,yw_sn,1,message)
 
                 sql = 'select name from org_member where id="%s"' % user_id
                 cnt = cur_mysql.execute(sql)
@@ -487,7 +489,7 @@ def redo_alarm(cur_mysql,line_id,yw_sn,desc):
     return
 
 # 向OA发风险告警信息
-def send_alarm(cur_mysql,user_id,summary_id,line_id,message):
+def send_alarm(cur_mysql,user_id,summary_id,line_id,yw_sn,message):
 
     print(">>>send_alarm:%s,%s,%s,%s<<<" % (user_id,summary_id,line_id,message))
 
@@ -523,12 +525,15 @@ def send_alarm(cur_mysql,user_id,summary_id,line_id,message):
                 sql = 'update post set alarm_cnt=%d where line_id=%s and sn=%s' % (warn_cnt,line_id,sn)
                 cur_mysql.execute(sql)
 
+                warn_log(cur_mysql,user_id,yw_sn,2,message)
+
     sql = 'select name from org_member where id="%s"' % user_id
     cnt = cur_mysql.execute(sql)
     if cnt>0:
         one = cur_mysql.fetchone()
         user = str(one[0])
         send_message_to_oa(ip,user,message)
+
     return
 
 # 向上级汇报信息
@@ -782,7 +787,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
             for s in sns:
 
                 # 获取满足条件的summary记录
-                sql = 'select current_nodes_info,subject,resent_time from col_summary where cnt=%d and sn=%d and line_id=%d and state=0' \
+                sql = 'select current_nodes_info,subject,resent_time,yw_sn from col_summary where cnt=%d and sn=%d and line_id=%d and state=0' \
                       % (d_cnt,s['sn'],s['line_id'])
                 cnt1 = cur_mysql1.execute(sql)
                 for i in range(cnt1):
@@ -791,6 +796,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                     current_nodes_info = str(one[0])
                     subject = str(one[1])
                     resent_time = str(one[2])
+                    yw_sn = str(one[3])
 
                     if resent_time=="None" or resent_time=="NONE":
                         continue
@@ -815,8 +821,8 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                                     % (user_name,subject,post_name))
                             else:
                                 user_name = get_user_name(cur_mysql2,current_nodes_info)
-                                send_message(cur_mysql2,current_nodes_info,"【数据铁笼预警】：%s，在办的《%s》%s即将超期，请加快办理。" \
-                                    % (user_name,subject,post_name))
+                                send_message(cur_mysql2,current_nodes_info,yw_sn,"【数据铁笼预警】：%s，在办的《%s》<%s>%s即将超期，请加快办理。" \
+                                    % (user_name,subject,yw_sn,post_name))
                                 # 向上级汇报
                                 members = get_leader(cur_mysql2,s['line_id'],s['sn'],0)
                                 for member in members:
@@ -827,7 +833,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
     # 放置“超时”判断，及“风险”告警
     # 检索col_summary表（state=0,cnt=0或deadline=0,line_id>0），看其当前时间（小时）-受理时间（resent_time）小时=1，则该业务超时
     #
-    sql = 'select current_nodes_info,subject,resent_time,id,line_id,sn from col_summary where cnt=0 and state=0 and line_id>0 order by start_date'
+    sql = 'select current_nodes_info,subject,resent_time,id,line_id,sn,yw_sn from col_summary where cnt=0 and state=0 and line_id>0 order by start_date'
     cnt = cur_mysql.execute(sql)
     for i in range(cnt):
 
@@ -838,6 +844,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
         summary_id = str(one[3])
         line_id = str(one[4])
         sn = str(one[5])
+        yw_sn = str(one[6])
 
         if (("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject)) and resent_time!="None":
 
@@ -846,7 +853,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
 
                 # 该申请节点办理超期
                 user_name = get_user_name(cur_mysql1,current_nodes_info)
-                send_alarm(cur_mysql1,current_nodes_info,summary_id,line_id,"【数据铁笼风险提示】：%s，在办的《%s》%s已超期，请加快办理。" \
+                send_alarm(cur_mysql1,current_nodes_info,summary_id,line_id,yw_sn,"【数据铁笼风险提示】：%s，在办的《%s》%s已超期，请加快办理。" \
                     % (user_name,subject,post_name))
 
                 # 向上级汇报
@@ -861,7 +868,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                 cur_mysql1.execute(sql)
 
     # 业务总期限（8天）提前2天预警
-    sql = 'select subject,resent_time,line_id from col_summary where deadline=2 and state=0 and line_id>0 order by start_date'
+    sql = 'select subject,resent_time,line_id,yw_sn from col_summary where deadline=2 and state=0 and line_id>0 order by start_date'
     cnt = cur_mysql.execute(sql)
     for i in range(cnt):
 
@@ -869,6 +876,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
         subject = str(one[0])
         resent_time = str(one[1])
         line_id = str(one[2])
+        yw_sn = str(one[3])
 
         if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
@@ -881,7 +889,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                     send_info(cur_mysql1,member,"【数据铁笼风险提示】：处室在办理《%s》时，离总期限还有一天时间，请知悉。" \
                         % (subject))
 
-    sql = 'select subject,resent_time,id,line_id from col_summary where deadline=0 and state=0 and line_id>0 order by start_date'
+    sql = 'select subject,resent_time,id,line_id,yw_sn from col_summary where deadline=0 and state=0 and line_id>0 order by start_date'
     cnt = cur_mysql.execute(sql)
     for i in range(cnt):
 
@@ -890,6 +898,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
         resent_time = str(one[1])
         summary_id = str(one[2])
         line_id = str(one[3])
+        yw_sn = str(one[4])
 
         if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
@@ -899,7 +908,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
                 # 通知处室处长
                 members = get_leader(cur_mysql1,line_id,1,0)
                 for member in members:
-                    send_alarm(cur_mysql1,member,summary_id,line_id,"【数据铁笼风险提示】：处室在办理《%s》时，总期限已超期，请知悉。" \
+                    send_alarm(cur_mysql1,member,summary_id,line_id,yw_sn,"【数据铁笼风险提示】：处室在办理《%s》时，总期限已超期，请知悉。" \
                         % (subject))
 
                 # 向上级汇报
@@ -934,7 +943,7 @@ def half_day(cur_mysql,cur_mysql1):
         # 今天是法定非工作日
         return
 
-    sql = 'select cnt,current_nodes_info,subject,line_id,sn from col_summary where state=0 order by create_date'
+    sql = 'select cnt,current_nodes_info,subject,line_id,sn,yw_sn from col_summary where state=0 order by create_date'
     cnt = cur_mysql.execute(sql)
     values = []
     if cnt>0:
@@ -947,6 +956,7 @@ def half_day(cur_mysql,cur_mysql1):
             subject = str(one[2])
             line_id = str(one[3])
             sn = str(one[4])
+            yw_sn = str(one[5])
 
             if ("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject):
 
@@ -957,7 +967,8 @@ def half_day(cur_mysql,cur_mysql1):
                     post_name = get_post_name(cur_mysql1,line_id,sn)
                     # 获取人员名称
                     user_name = get_user_name(cur_mysql1,current_nodes_info)
-                    send_message(cur_mysql1,current_nodes_info,"【数据铁笼预警】：%s，在办的《%s》%s即将超期，请尽快办理，谢谢！" % (user_name,subject,post_name))
+                    send_message(cur_mysql1,current_nodes_info,yw_sn,"【数据铁笼预警】：%s，在办的《%s》<%s>%s即将超期，请尽快办理，谢谢！" %
+                                 (user_name,subject,yw_sn,post_name))
 
                     # 向上级汇报
                     members = get_leader(cur_mysql1,line_id,sn,0)
@@ -1123,9 +1134,7 @@ def set_summary_state(cur_oracle,cur_mysql):
 # 5）从summary表中查找到该“流水号”的表记录，并置上“优先通过”标记
 # 6）从warn_alarm_table表中查找匹配的记录，若有，则需撤回该人员、节点的“风险”提示 -2015-12-25
 #
-def set_summary_pri(cur_mysql,summary_id):
-
-    cur_mysql1 = mysql_conn()
+def set_summary_pri(cur_mysql,summary_id,yw_sn,member_id):
 
     sql = 'select subject,form_recordid,form_appid from col_summary where id="%s"' % summary_id
     cnt = cur_mysql.execute(sql)
@@ -1151,34 +1160,25 @@ def set_summary_pri(cur_mysql,summary_id):
                 #print name
                 if "分管领导指派优先办理" in name:
 
-                    # 查找“特权”针对的业务流水号
-                    field_name,name = find_field_name(cur_mysql,formmain_name,"流水号")
+                    # 查找具有该流水号的summary记录
+                    sql = 'select id,line_id from col_summary where yw_sn="%s"' % yw_sn
+                    cnt = cur_mysql.execute(sql)
+                    if cnt > 0:
 
-                    #print(">>>field_name=%s,name=%s<<<" % (field_name,name))
-                    if field_name is not None:
+                        one = cur_mysql.fetchone()
+                        o_summary_id = str(one[0])
+                        line_id = str(one[1])
 
-                        val = get_field_value(cur_mysql,form_recordid,field_name)
-                        if val is not None:
+                        # 设置特权
+                        sql = 'update col_summary set pri=1 where id="%s"' % o_summary_id
+                        cur_mysql.execute(sql)
 
-                            # 查找具有该流水号的summary记录
-                            sql = 'select id,line_id from col_summary where yw_sn="%s"' % val
-                            cnt = cur_mysql.execute(sql)
-                            if cnt > 0:
+                        # 撤销已发生的“风险”告警
+                        redo_alarm(cur_mysql,line_id,yw_sn,'仍有未办理业务')
+                        # 撤销受理缺失资料的“风险”告警
+                        redo_alarm(cur_mysql,line_id,yw_sn,'提交材料存在缺失项')
 
-                                one = cur_mysql.fetchone()
-                                o_summary_id = str(one[0])
-                                line_id = str(one[1])
-
-                                # 设置特权
-                                sql = 'update col_summary set pri=1 where id="%s"' % o_summary_id
-                                cur_mysql.execute(sql)
-
-                                # 撤销已发生的“风险”告警
-                                redo_alarm(cur_mysql,line_id,val,'仍有未办理业务')
-                                # 撤销受理缺失资料的“风险”告警
-                                redo_alarm(cur_mysql,line_id,val,'提交材料存在缺失项')
-
-    cur_mysql1.close()
+                        pri_log(cur_mysql,member_id,yw_sn,"%s") % ("分管领导指派优先办理<%s>" % yw_sn)
 
     return
 
@@ -1211,22 +1211,24 @@ def get_line_member(cur_mysql,line_id):
 def supervision(cur_mysql,cur_mysql1,n_days):
 
     # 预警
-    sql = 'select subject,line_id from col_summary where state=3 and vouch=2015 and to_days(start_date)-to_days(now())=%d' % n_days
+    sql = 'select subject,line_id,yw_sn from col_summary where state=3 and vouch=2015 and to_days(start_date)-to_days(now())=%d' % n_days
     cnt = cur_mysql.execute(sql)
     for i in range(cnt):
 
         one = cur_mysql.fetchone()
         subject = str(one[0])
         line_id = str(one[1])
+        yw_sn = str(one[2])
 
         # 向业务线处室发出预警
         # 获取人员名称
         members = get_line_member(cur_mysql1,line_id)
         for member in members:
-            send_message(cur_mysql1,member,"【数据铁笼预警】：你处室办理的《%s》事后监督期限即将超期，请尽快办理，谢谢！" % subject)
+            send_message(cur_mysql1,member,yw_sn,"【数据铁笼预警】：你处室办理的《%s》<%s>事后监督期限即将超期，请尽快办理，谢谢！" %
+                         (subject,yw_sn))
 
     # 风险
-    sql = 'select subject,line_id,id from col_summary where state=3 and vouch=2015 and to_days(start_date)-to_days(now())=0'
+    sql = 'select subject,line_id,id,yw_sn from col_summary where state=3 and vouch=2015 and to_days(start_date)-to_days(now())=0'
     cnt = cur_mysql.execute(sql)
     for i in range(cnt):
 
@@ -1234,12 +1236,13 @@ def supervision(cur_mysql,cur_mysql1,n_days):
         subject = str(one[0])
         line_id = str(one[1])
         summary_id = str(one[2])
+        yw_sn = str(one[3])
 
         # 向业务线处室发出风险提示，向上级发出风险汇报
         # 获取人员名称
         members = get_line_member(cur_mysql1,line_id)
         for member in members:
-            send_alarm(cur_mysql1,member,summary_id,line_id,"【数据铁笼风险提示】：你处室办理的《%s》事后监督已超期，请加快办理。" % subject)
+            send_alarm(cur_mysql1,member,summary_id,line_id,yw_sn,"【数据铁笼风险提示】：你处室办理的《%s》事后监督已超期，请加快办理。" % subject)
 
     return
 
@@ -1534,17 +1537,41 @@ def yw_log(cur_mysql,summary_id,member_id,sn,start_date,end_date,dlt_time):
 
 # 风险预警、告警日志
 #
-def warn_log():
+def warn_log(cur_mysql,member_id,yw_sn,flg,message):
 
     _uuid = create_UUID()
+
+    sql = 'insert into warn_log(uuid,message) value("%s","%s")' % (_uuid,message)
+    cur_mysql.execute(sql)
+
+    sql = 'insert into sn_log(yw_sn,uuid,flg) value("%s","%s",%s)' % (yw_sn,_uuid,str(flg))
+    cur_mysql.execute(sql)
+    sql = 'insert into member_log(member_id,uuid,flg) value("%s","%s",%s)' % (member_id,_uuid,str(flg))
+    cur_mysql.execute(sql)
 
     return
 
 # 特权日志
 #
-def pri_log():
+def pri_log(cur_mysql,member_id,yw_sn,message):
 
     _uuid = create_UUID()
+
+    # 获取 人员名称、岗位名称
+    sql = 'select a.name,b.name from org_member a, org_post b where a.id="%s" and b.id=a.org_postid' % member_id
+    cnt = cur_mysql.execute(sql)
+    if cnt>0:
+        one = cur_mysql.fetchone()
+        member = str(one[0])
+        post = str(one[1])
+
+        sql = 'insert into pri_log(uuid,member,post,message) value("%s","%s","%s","%s")' % (_uuid,member,post,message)
+        cur_mysql.execute(sql)
+
+        sql = 'insert into sn_log(yw_sn,uuid,flg) value("%s","%s",%d)' % (yw_sn,_uuid,3)
+        cur_mysql.execute(sql)
+        sql = 'insert into member_log(member_id,uuid,flg) value("%s","%s",%d)' % (member_id,_uuid,3)
+        cur_mysql.execute(sql)
 
     return
 
