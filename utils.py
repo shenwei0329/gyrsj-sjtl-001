@@ -1390,11 +1390,11 @@ def cal_workdays(cur_mysql,start_date,end_date):
             date_d = datetime.datetime(date_d.year,date_d.month,date_d.day,9,0,0,0)
             date_d += datetime.timedelta(days=1)
         else:
-            if (date_d.hour>=9 and date_d.hour<12) or (date_d.hour>=13 and date_d.hour<17):
+            if (date_d.hour>=9 and date_d.hour<12) or (date_d.hour>=13 and date_d.hour<18):
                 dlt_time += 1
             date_d += datetime.timedelta(minutes=1)
-            if date_d.hour==17:
-                date_d += datetime.timedelta(hours=16)
+            if date_d.hour==17 and date_d.minute==30:
+                date_d += datetime.timedelta(hours=15)
 
     print(">>>s:%s e:%s dlt_time:%d" % (start_date,end_date,dlt_time))
 
