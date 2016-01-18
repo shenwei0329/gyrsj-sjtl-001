@@ -1370,30 +1370,6 @@ def is_workday(cur_mysql,year,month,day):
         return False
     return True
 
-# 对齐到工作日
-# 若该时间点是在非工作日内，则需要向前推至工作日的16:59:59
-#
-def to_workday(cur_mysql,date_d):
-
-    # 防止“死锁”的计数器
-    n = 31
-    while 1:
-        if not is_workday(cur_mysql,date_d.year,date_d.month,date_d.day):
-
-            # 设定为 工作日 的最后 时间
-            date_d.hour = 16
-            date_d.minute = 59
-            date_d.second = 59
-
-            # 若，这天不是工作日，则，需要往前推一天
-            date_d += datetime.timedelta(days=-1)
-        else:
-            return date_d
-        n -= 1
-        if n<=0:
-            break
-    return date_d
-
 # 计算时间段内有效的工作时间
 # 需要抛开 非工作日 和 非工作时段，工作时段（9~12,13~17）
 #
@@ -1401,79 +1377,26 @@ def cal_workdays(cur_mysql,start_date,end_date):
 
     dlt_time = 0
 
-    # 调整 时间点，规整到 工作范围内
-    start_d = datetime.datetime.strptime(start_date,"%Y-%m-%d %H:%M:%S")
-    if start_d.hour<9:
-        # 对于 0~9点之间的时间，视同前一天16:59:59
-        start_d += datetime.timedelta(days=-1)
-        cur_d = datetime.datetime(start_d.year,start_d.month,start_d.day,16,59,59,0)
-        start_d = cur_d
-    elif start_d.hour>17:
-        # 对于 17~24点之间的时间，视同当天16:59:59
-        cur_d = datetime.datetime(start_d.year,start_d.month,start_d.day,16,59,59,0)
-        start_d = cur_d
-    elif start_d.hour==12:
-        # 去掉 12点（1小时）的午餐时间
-        cur_d = datetime.datetime(start_d.year,start_d.month,start_d.day,13,0,0,0)
-        end_d = cur_d
-
+    date_d = datetime.datetime.strptime(start_date,"%Y-%m-%d %H:%M:%S")
     end_d = datetime.datetime.strptime(end_date,"%Y-%m-%d %H:%M:%S")
-    if end_d.hour<9:
-        # 对于 0~9点之间的时间，视同前一天16:59:59
-        end_d += datetime.timedelta(days=-1)
-        cur_d = datetime.datetime(end_d.year,end_d.month,end_d.day,16,59,59,0)
-        end_d = cur_d
-    elif end_d.hour>17:
-        # 对于 17~24点之间的时间，视同当天16:59:59
-        cur_d = datetime.datetime(end_d.year,end_d.month,end_d.day,16,59,59,0)
-        end_d = cur_d
-    elif end_d.hour==12:
-        # 去掉 12点（1小时）的午餐时间
-        cur_d = datetime.datetime(end_d.year,end_d.month,end_d.day,13,0,0,0)
-        end_d = cur_d
 
-    if start_d>=end_d:
-        return dlt_time
+    while 1:
 
-    ''' 暂不考虑这种异常
-    if start_d>end_d:
-        # 错误的时间段
-        return 365*24*60
-    '''
-
-    # 将时间点规整到 有效的工作日 上
-    # 原则：
-    #   若时间点属于非工作日，则往前推，直到最后一个非工作日，并把时间定为该日的16:59:59
-    #
-    start_d = to_workday(cur_mysql,start_d)
-    end_d = to_workday(cur_mysql,end_d)
-
-    if start_d==end_d:
-        return dlt_time
-
-    nd = 0
-    cur_d = datetime.datetime(start_d.year,start_d.month,start_d.day,23,59,59,0)
-    while end_d>(cur_d+datetime.timedelta(days=1)):
-        cur_d += datetime.timedelta(days=1)
-        if is_workday(cur_mysql,cur_d.year,cur_d.month,cur_d.day):
-            nd += 1
-        if nd>30:
+        if date_d>end_d:
             break
 
-    # 计算当天起始时间段的花费时间（秒），此时的 hour 肯定在[9,12]和[13,17]范围内
-    if start_d.hour<12:
-        dlt_t1 = 4*3600 + (datetime.datetime(end_d.year,end_d.month,end_d.day,12,0,0,0) - start_d).seconds
-    else:
-        dlt_t1 = (datetime.datetime(end_d.year,end_d.month,end_d.day,17,0,0,0) - start_d).seconds
+        if not is_workday(cur_mysql,date_d.year,date_d.month,date_d.day):
+            # 到下一天 09:00:00
+            date_d = datetime.datetime(date_d.year,date_d.month,date_d.day,9,0,0,0)
+            date_d += datetime.timedelta(days=1)
+        else:
+            if (date_d.hour>=9 and date_d.hour<12) or (date_d.hour>=13 and date_d.hour<17):
+                dlt_time += 1
+            date_d += datetime.timedelta(minutes=1)
+            if date_d.hour==17:
+                date_d += datetime.timedelta(hours=16)
 
-    # 计算当天终止时间段的花费时间（秒）
-    if end_d.hour<12:
-        dlt_t2 = (end_d - datetime.datetime(end_d.year,end_d.month,end_d.day,9,0,0,0)).seconds
-    else:
-        dlt_t2 = 3*3600 + (end_d - datetime.datetime(end_d.year,end_d.month,end_d.day,13,0,0,0)).seconds
-
-    # 计算总花费时间（分钟），每天按7.5小时计
-    dlt_time = (dlt_t1 + dlt_t2)/60 + nd*75*6
+    print(">>>s:%s e:%s dlt_time:%d" % (start_date,end_date,dlt_time))
 
     return dlt_time
 
@@ -1501,7 +1424,8 @@ def yw_log(cur_mysql,summary_id,member_id,sn,start_date,end_date,dlt_time):
         yw_sn = str(one[2])
 
         # 获取 人员名称、岗位名称
-        sql = 'select a.name,b.name from org_member a, org_post b where a.id="%s" and b.id=a.org_postid' % member_id
+        sql = 'select a.name,b.name from org_member a, org_post b where a.id="%s" and b.id=a.org_post_id' % member_id
+        #print(sql)
         cnt = cur_mysql.execute(sql)
         if cnt>0:
             one = cur_mysql.fetchone()
@@ -1518,6 +1442,7 @@ def yw_log(cur_mysql,summary_id,member_id,sn,start_date,end_date,dlt_time):
                 # 获取 业务线节点 时限
                 sql = 'select deadline from post_deadline where line_id=%s and post_sn=%s' % \
                       (line_id,str(sn))
+                print(sql)
                 cnt = cur_mysql.execute(sql)
                 if cnt>0:
                     one = cur_mysql.fetchone()
@@ -1529,10 +1454,16 @@ def yw_log(cur_mysql,summary_id,member_id,sn,start_date,end_date,dlt_time):
                             (_uuid,sn_info,member,post,subject,start_date,end_date,dlt_time,dlt_rate)
                     cur_mysql.execute(sql)
 
+                    # 取 毫秒 偏移值
+                    t_stamp = int(round(time.time()*1000)) % 1000
                     # 加入到 业务流水日志
-                    sql = 'insert into sn_log(yw_sn,uuid,flg) value("%s","%s",%d)' % (yw_sn,_uuid,0)
+                    sql = 'insert into sn_log(yw_sn,uuid,flg,t_stamp) value("%s","%s",%d,%d)' % \
+                          (yw_sn,_uuid,0,t_stamp)
+                    cur_mysql.execute(sql)
                     # 加入到 人员日志
-                    sql = 'insert into member_log(member_id,uuid,flg) value("%s","%s",%d)' % (member_id,_uuid,0)
+                    sql = 'insert into member_log(member_id,uuid,flg,t_stamp) value("%s","%s",%d,%d)' % \
+                          (member_id,_uuid,0,t_stamp)
+                    cur_mysql.execute(sql)
     return
 
 # 风险预警、告警日志
@@ -1544,9 +1475,13 @@ def warn_log(cur_mysql,member_id,yw_sn,flg,message):
     sql = 'insert into warn_log(uuid,message) value("%s","%s")' % (_uuid,message)
     cur_mysql.execute(sql)
 
-    sql = 'insert into sn_log(yw_sn,uuid,flg) value("%s","%s",%s)' % (yw_sn,_uuid,str(flg))
+    # 取 毫秒 偏移值
+    t_stamp = int(round(time.time()*1000)) % 1000
+    sql = 'insert into sn_log(yw_sn,uuid,flg,t_stamp) value("%s","%s",%s,%d)' % \
+          (yw_sn,_uuid,str(flg),t_stamp)
     cur_mysql.execute(sql)
-    sql = 'insert into member_log(member_id,uuid,flg) value("%s","%s",%s)' % (member_id,_uuid,str(flg))
+    sql = 'insert into member_log(member_id,uuid,flg,t_stamp) value("%s","%s",%s,%d)' % \
+          (member_id,_uuid,str(flg),t_stamp)
     cur_mysql.execute(sql)
 
     return
@@ -1568,9 +1503,13 @@ def pri_log(cur_mysql,member_id,yw_sn,message):
         sql = 'insert into pri_log(uuid,member,post,message) value("%s","%s","%s","%s")' % (_uuid,member,post,message)
         cur_mysql.execute(sql)
 
-        sql = 'insert into sn_log(yw_sn,uuid,flg) value("%s","%s",%d)' % (yw_sn,_uuid,3)
+        # 取 毫秒 偏移值
+        t_stamp = int(round(time.time()*1000)) % 1000
+        sql = 'insert into sn_log(yw_sn,uuid,flg,t_stamp) value("%s","%s",%d,%d)' % \
+              (yw_sn,_uuid,3,t_stamp)
         cur_mysql.execute(sql)
-        sql = 'insert into member_log(member_id,uuid,flg) value("%s","%s",%d)' % (member_id,_uuid,3)
+        sql = 'insert into member_log(member_id,uuid,flg,t_stamp) value("%s","%s",%d,%d)' % \
+              (member_id,_uuid,3,t_stamp)
         cur_mysql.execute(sql)
 
     return

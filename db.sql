@@ -567,32 +567,37 @@ create TABLE line_desc (
 insert into line_desc(id,info) values(1,'人力资源服务许可'),(2,'劳务派遣行政许可');
 
 create TABLE sn_desc (
- line_id int, -- 业务线 节点编号
- id int primary key(id,line_id) not null, -- 业务线ID
- info varchar(80) -- 说明
-)
+ line_id int not null, -- 业务线 节点编号
+ id int not null, -- 业务线ID
+ info varchar(80), -- 说明
+ primary key(id,line_id)
+) default charset=utf8;
 
-insert into line_desc(line_id,id,info) values (1,0,'受理'),(1,1,'初审'),(1,2,'复审'),(1,3,'审批'),(1,4,'办结');
-insert into line_desc(line_id,id,info) values (2,0,'受理'),(2,1,'初审'),(2,2,'复审'),(2,3,'现场'),(2,4,'审批'),(2,5,'办结');
+insert into sn_desc(line_id,id,info) values (1,0,'受理'),(1,1,'初审'),(1,2,'复审'),(1,3,'审批'),(1,4,'办结');
+insert into sn_desc(line_id,id,info) values (2,0,'受理'),(2,1,'初审'),(2,2,'复审'),(2,3,'现场'),(2,4,'审批'),(2,5,'办结');
 
 -- 业务流水日志
 -- 以“流水号”为基准，按时间轴把过程中出现的每一个事件每都记录起来
 --
 create TABLE sn_log (
-  yw_sn varchar(80), -- 事件对象
-  uuid  varchar(80) primary key(yw_sn,uuid) not null,
+  yw_sn varchar(80) not null, -- 事件对象
+  uuid  varchar(80) not null,
   flg int, -- 0：工作流；1：预警；2：风险；3：特权
-  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- 事件时间轴
+  t_stamp int, -- 精确到 毫秒 的时间戳
+  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- 事件时间轴
+  primary key(yw_sn,uuid)
 ) default charset=utf8;
 
 -- 人员日志
 -- 以“人员”为基准，按时间轴把过程中出现的每一个事件每都记录起来
 --
 create TABLE member_log (
-  member_id bigint, -- 人员ID
-  uuid  varchar(80) primary key(member,uuid) not null,
+  member_id bigint not null, -- 人员ID
+  uuid  varchar(80) not null,
   flg int, -- 0：工作流；1：预警；2：风险；3：特权
-  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- 事件时间轴
+  t_stamp int, -- 精确到 毫秒 的时间戳
+  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- 事件时间轴
+  primary key(member_id,uuid)
 ) default charset=utf8;
 
 -- 工作流日志
