@@ -165,6 +165,7 @@ def do_rec(cur,cur_mysql,in_sql):
                 utils.yw_log(cur_mysql,summary_id,start_member,0,acc_time,now_d.strftime('%Y-%m-%d %H:%M:%S'),min_cnt)
 
                 #if (now_ts>acc_ts) and ((now_ts-acc_ts)>(24*60)):
+                # 工作耗时超过7.5小时
                 if min_cnt>=450:
 
                     # 提交日期 超过 受理日期 一天以上

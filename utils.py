@@ -1380,6 +1380,7 @@ def cal_workdays(cur_mysql,start_date,end_date):
     date_d = datetime.datetime.strptime(start_date,"%Y-%m-%d %H:%M:%S")
     end_d = datetime.datetime.strptime(end_date,"%Y-%m-%d %H:%M:%S")
 
+    # 采用“扫描”方式计算 耗时
     while 1:
 
         if date_d>end_d:
@@ -1390,6 +1391,7 @@ def cal_workdays(cur_mysql,start_date,end_date):
             date_d = datetime.datetime(date_d.year,date_d.month,date_d.day,9,0,0,0)
             date_d += datetime.timedelta(days=1)
         else:
+            # 在工作时间内 9:00~12:00AM 13:00~17:30PM
             if (date_d.hour>=9 and date_d.hour<12) or (date_d.hour>=13 and date_d.hour<18):
                 dlt_time += 1
             date_d += datetime.timedelta(minutes=1)
