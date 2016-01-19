@@ -373,8 +373,9 @@ def find_field_name(cur_mysql,formmain_name,s_name):
 
             #print field_name,name
 
-            if s_name == name:
-
+            # 包含，例如 组织机构代码 和 组织机构代码证号
+            #if s_name == name:
+            if s_name in name:
                 #print field_name, name
                 return field_name, name
 
@@ -1466,6 +1467,17 @@ def yw_log(cur_mysql,summary_id,member_id,sn,start_date,end_date,dlt_time):
                     sql = 'insert into member_log(member_id,uuid,flg,t_stamp) value("%s","%s",%d,%d)' % \
                           (member_id,_uuid,0,t_stamp)
                     cur_mysql.execute(sql)
+
+                    rec = build_ServiceObject(cur_mysql,summary_id)
+                    sql = 'insert into service_obj_log(bar_code,uuid,t_stamp,name,addr,registered_capital,' + \
+                          'registeration_number,registered_addr,legal_representative_id,legal_representative_name,' + \
+                          'legal_representative_tel,operator_id,operator_name,operator_tel,yw_sn) value (' + \
+                          '"%s","%s",%d,"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s")' % \
+                          (rec['bar_code'],uuid,t_stamp,rec['name'],rec['addr'],rec['registered_capital'],
+                           rec['registeration_number'],rec['registered_addr'],rec['legal_representative_id'],
+                           rec['legal_representative_name'],rec['legal_representative_tel'],rec['operator_id'],
+                           rec['operator_name'],rec['operator_tel'],yw_sn)
+                    cur_mysql.execute(sql)
     return
 
 # 风险预警、告警日志
@@ -1518,6 +1530,28 @@ def pri_log(cur_mysql,member_id,yw_sn,message):
 
 def create_UUID():
     return str(uuid.uuid4())
+
+# 根据 summary_id 构建该 申请 的企业信息
+#
+def build_ServiceObject(cur_mysql,summary_id):
+
+    rec = {}
+    rec['bar_code'] = get_summary_feild_value(cur_mysql,summary_id,"组织机构代码")
+    rec['name'] = get_summary_feild_value(cur_mysql,summary_id,"单位名称")
+    rec['addr'] = get_summary_feild_value(cur_mysql,summary_id,"经营地址")
+    rec['registered_capital'] = get_summary_feild_value(cur_mysql,summary_id,"注册资金")
+    rec['registeration_number'] = get_summary_feild_value(cur_mysql,summary_id,"工商注册号")
+    rec['registered_addr'] = get_summary_feild_value(cur_mysql,summary_id,"注册地区")
+    rec['legal_representative_id'] = get_summary_feild_value(cur_mysql,summary_id,"法人代表人身份证号")
+    rec['legal_representative_name'] = get_summary_feild_value(cur_mysql,summary_id,"法人代表名称")
+    if rec['legal_representative_name'] is None:
+        rec['legal_representative_name'] = get_summary_feild_value(cur_mysql,summary_id,"法人代表人名称")
+    rec['legal_representative_tel'] = get_summary_feild_value(cur_mysql,summary_id,"法人代表人联系电话")
+    rec['operator_id'] = get_summary_feild_value(cur_mysql,summary_id,"经办人身份证号")
+    rec['operator_name'] = get_summary_feild_value(cur_mysql,summary_id,"经办人姓名")
+    rec['operator_tel'] = get_summary_feild_value(cur_mysql,summary_id,"经办人联系电话")
+
+    return rec
 
 #
 # Eof

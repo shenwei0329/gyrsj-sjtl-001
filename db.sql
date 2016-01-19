@@ -600,6 +600,34 @@ create TABLE member_log (
   primary key(member_id,uuid)
 ) default charset=utf8;
 
+-- 服务对象
+-- 以“服务对象（单位）”为基准，按时间轴记录
+--
+create TABLE service_obj_log (
+  bar_code varchar(20) not null, -- 组织机构代码
+  uuid  varchar(80) not null,
+  t_stamp int, -- 精确到 毫秒 的时间戳
+  create_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- 事件时间轴
+
+  name varchar(80),
+  addr varchar(80),
+  registered_capital varchar(80),
+  registeration_number varchar(80),
+  registered_addr varchar(80),
+  legal_representative_id varchar(64),
+  legal_representative_name varchar(64),
+  legal_representative_tel varchar(24),
+  operator_id varchar(64),
+  operator_name varchar(64),
+  operator_tel varchar(24),
+
+  yw_sn varchar(80) not null,  -- 业务流水号
+
+  primary key(bar_code,uuid)
+
+) default charset=utf8;
+
+
 -- 工作流日志
 --
 create TABLE wf_log (
