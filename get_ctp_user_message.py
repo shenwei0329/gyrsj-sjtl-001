@@ -46,9 +46,9 @@ def do_rec(cur,cur_mysql,in_sql):
                     if i == 2:
                         text = str(one[i])
                         # 过滤掉 政务大厅发起协同 的信息
-                        #if "政务大厅发起协同" in text:
-                        #    out_flg = True
-                        #    break
+                        if "发起协同" in text:
+                            out_flg = True
+                            break
                         summary_id = get_summary_id_by_subject(cur_mysql,text)
                         if sender_id == "8764456166134006930":
                             if "数据铁笼预警" in text:

@@ -1473,7 +1473,7 @@ def yw_log(cur_mysql,summary_id,member_id,sn,start_date,end_date,dlt_time):
                           'registeration_number,registered_addr,legal_representative_id,legal_representative_name,' + \
                           'legal_representative_tel,operator_id,operator_name,operator_tel,yw_sn) value (' + \
                           '"%s","%s",%d,"%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s","%s")' % \
-                          (rec['bar_code'],uuid,t_stamp,rec['name'],rec['addr'],rec['registered_capital'],
+                          (rec['bar_code'],_uuid,t_stamp,rec['name'],rec['addr'],rec['registered_capital'],
                            rec['registeration_number'],rec['registered_addr'],rec['legal_representative_id'],
                            rec['legal_representative_name'],rec['legal_representative_tel'],rec['operator_id'],
                            rec['operator_name'],rec['operator_tel'],yw_sn)

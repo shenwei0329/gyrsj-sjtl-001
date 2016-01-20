@@ -22,6 +22,9 @@ import java.sql.SQLException;
 import java.sql.Connection;
 import java.sql.Statement;
 
+import java.util.Date;
+import java.text.SimpleDateFormat;
+
 public class syncMember {
 
     // 声明静态配置
@@ -46,7 +49,7 @@ public class syncMember {
             desc.addFamily(new HColumnDescriptor(family[i]));
         }
         if (admin.tableExists(tableName)) {
-            System.out.println("table Exists!");
+            //System.out.println("table Exists!");
             /*System.exit(0);*/
             return;
         } else {
@@ -73,14 +76,14 @@ public class syncMember {
     public static void addData(String rowKey, String tableName,
             String family, String column, String value) throws IOException {
 
-        System.out.println(">>> addData("+rowKey+","+tableName+","+family+","+column+","+value+")");
+        //System.out.println(">>> addData("+rowKey+","+tableName+","+family+","+column+","+value+")");
         Put put = new Put(Bytes.toBytes(rowKey));// 设置rowkey
         HTable table = new HTable(conf, Bytes.toBytes(tableName));// HTabel负责跟记录相关的操作如增删改查等//
 
         put.add(Bytes.toBytes(family),Bytes.toBytes(column), Bytes.toBytes(value));
         table.put(put);
 
-        System.out.println("add data Success!");
+        //System.out.println("add data Success!");
     }
 
     /*
@@ -326,6 +329,9 @@ public class syncMember {
 
     public static void main(String[] args) throws Exception {
 
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+        String now_date = df.format(new Date());
+
         // 创建表
         String tableName[] = {"rsj_member"};
         String[][] family = {
@@ -341,7 +347,7 @@ public class syncMember {
             }
             creatTable(tn, family[i]);
             i += 1;
-            System.out.println(s);
+            //System.out.println(s);
         }
 	
         // mysql
@@ -352,12 +358,12 @@ public class syncMember {
         String url = "jdbc:mysql://master:3306/gyrsj?user=root&password=123456&useUnicode=true&characterEncoding=UTF8";
         try {
             Class.forName("com.mysql.jdbc.Driver");
-            System.out.println("...Loading MySQL Driver OK");
+            //System.out.println("...Loading MySQL Driver OK");
             conn = DriverManager.getConnection(url);
             Statement stmt = conn.createStatement();
 
             // 添加业务流水 到 “流程”主题库
-            sql = "select member_id,uuid,flg,t_stamp,create_date from member_log";
+            sql = "select member_id,uuid,flg,t_stamp,create_date from member_log where create_date>"+now_date;
             ResultSet rs = stmt.executeQuery(sql);
 
             String memberID;
@@ -421,7 +427,7 @@ public class syncMember {
         }
 
         // 遍历查询
-        getResultScann("rsj_member", "A","z");
+        //getResultScann("rsj_member", "A","z");
         // 根据row key范围遍历查询
         //getResultScann("blog2", "rowkey4", "rowkey5");
 

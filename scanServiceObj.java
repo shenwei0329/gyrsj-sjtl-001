@@ -22,10 +22,7 @@ import java.sql.SQLException;
 import java.sql.Connection;
 import java.sql.Statement;
 
-import java.util.Date;
-import java.text.SimpleDateFormat;
-
-public class syncServiceObj {
+public class scanServiceObj {
 
     // 声明静态配置
     static Configuration conf = null;
@@ -49,7 +46,7 @@ public class syncServiceObj {
             desc.addFamily(new HColumnDescriptor(family[i]));
         }
         if (admin.tableExists(tableName)) {
-            //System.out.println("table Exists!");
+            System.out.println("table Exists!");
             /*System.exit(0);*/
             return;
         } else {
@@ -76,14 +73,14 @@ public class syncServiceObj {
     public static void addData(String rowKey, String tableName,
             String family, String column, String value) throws IOException {
 
-        //System.out.println(">>> addData("+rowKey+","+tableName+","+family+","+column+","+value+")");
+        System.out.println(">>> addData("+rowKey+","+tableName+","+family+","+column+","+value+")");
         Put put = new Put(Bytes.toBytes(rowKey));// 设置rowkey
         HTable table = new HTable(conf, Bytes.toBytes(tableName));// HTabel负责跟记录相关的操作如增删改查等//
 
         put.add(Bytes.toBytes(family),Bytes.toBytes(column), Bytes.toBytes(value));
         table.put(put);
 
-        //System.out.println("add data Success!");
+        System.out.println("add data Success!");
     }
 
     /*
@@ -329,95 +326,8 @@ public class syncServiceObj {
 
     public static void main(String[] args) throws Exception {
 
-        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
-        String now_date = df.format(new Date());
-
-        // 创建表
-        String tableName[] = {"rsj_service_object"};
-        String[][] family = {
-                             {"index","name","addr","registered_capital","registeration_number","registered_addr",
-                              "legal_representative_id","legal_representative_name","legal_representative_tel",
-                              "operator_id","operator_name","operator_tel","yw_sn"}
-                            };
-        int i = 0;
-        String s;
-        for (String tn : tableName) {
-            s = ">>> Create Table [ " + tn + " ].";
-            for (String fm : family[i]) {
-                s += ".( " + fm + " )";
-            }
-            creatTable(tn, family[i]);
-            i += 1;
-            //System.out.println(s);
-        }
-	
-        // mysql
-        Connection conn = null;
-        String sql;
-
-        String url = "jdbc:mysql://master:3306/gyrsj?user=root&password=123456&useUnicode=true&characterEncoding=UTF8";
-        try {
-            Class.forName("com.mysql.jdbc.Driver");
-            //System.out.println("...Loading MySQL Driver OK");
-            conn = DriverManager.getConnection(url);
-            Statement stmt = conn.createStatement();
-
-            // 添加业务流水 到 “服务对象”主题库
-            sql = "select bar_code,uuid,t_stamp,create_date,name,addr,registered_capital,registeration_number," +
-                  "registered_addr,legal_representative_id,legal_representative_name,legal_representative_tel," +
-                  "operator_id,operator_name,operator_tel,yw_sn from service_obj_log where create_date>" + now_date;
-            ResultSet rs = stmt.executeQuery(sql);
-
-            String bar_code,uuid,t_stamp,create_date,name,addr,registered_capital,registeration_number;
-            String registered_addr,legal_representative_id,legal_representative_name,legal_representative_tel;
-            String operator_id,operator_name,operator_tel,yw_sn;
-            String tableN = "rsj_service_object";
-
-            while (rs.next()) {
-
-                bar_code = rs.getString(1);
-                uuid = rs.getString(2);
-                t_stamp = rs.getString(3);
-                create_date = rs.getString(4);
-                name = rs.getString(5);
-                addr = rs.getString(6);
-                registered_capital = rs.getString(7);
-                registeration_number = rs.getString(8);
-                registered_addr = rs.getString(9);
-                legal_representative_id = rs.getString(10);
-                legal_representative_name = rs.getString(11);
-                legal_representative_tel = rs.getString(12);
-                operator_id = rs.getString(13);
-                operator_name = rs.getString(14);
-                operator_tel = rs.getString(15);
-                yw_sn = rs.getString(16);
-
-                addData(bar_code,tableN,"index",create_date+t_stamp,uuid);
-                addData(bar_code,tableN,"name",uuid,name);
-                addData(bar_code,tableN,"addr",uuid,addr);
-                addData(bar_code,tableN,"registered_capital",uuid,registered_capital);
-                addData(bar_code,tableN,"registeration_number",uuid,registeration_number);
-                addData(bar_code,tableN,"registered_addr",uuid,registered_addr);
-                addData(bar_code,tableN,"legal_representative_id",uuid,legal_representative_id);
-                addData(bar_code,tableN,"legal_representative_name",uuid,legal_representative_name);
-                addData(bar_code,tableN,"legal_representative_tel",uuid,legal_representative_tel);
-                addData(bar_code,tableN,"operator_id",uuid,operator_id);
-                addData(bar_code,tableN,"operator_name",uuid,operator_name);
-                addData(bar_code,tableN,"operator_tel",uuid,operator_tel);
-                addData(bar_code,tableN,"yw_sn",uuid,yw_sn);
-            }
-
-        } catch (SQLException e) {
-            System.out.println("MySQL op. Error!");
-            e.printStackTrace();
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            conn.close();
-        }
-
         // 遍历查询
-        //getResultScann("rsj_service_object", "0","z");
+        getResultScann("rsj_service_object", "0","z");
         // 根据row key范围遍历查询
         //getResultScann("blog2", "rowkey4", "rowkey5");
 
