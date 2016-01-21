@@ -50,8 +50,11 @@ create TABLE special_day (
 ) default charset=utf8;
 
 create TABLE login_log (
-	member_id		bigint		NOT NULL,
-	login_time		datetime 	NOT NULL
+  id bigint NOT NULL,
+	member_id bigint NOT NULL,
+	login datetime NOT NULL,
+	logout datetime NOT NULL,
+	ip varchar(20) NOT NULL
 ) default charset=utf8;
 
 create TABLE requisition (
@@ -107,6 +110,14 @@ create TABLE ctp_user_history_message (
   create_date	datetime NOT NULL,
   flg bigint NOT NULL,
   summary_id bigint -- 与col_summary表关联申请单，以查询该申请单的轨迹记录
+) default charset=utf8;
+
+create TABLE col_user_message (
+ id bigint NOT NULL,
+ sender_id bigint NOT NULL,
+  receiver_id bigint NOT NULL,
+  message varchar(255) NOT NULL,
+  create_date	datetime NOT NULL
 ) default charset=utf8;
 
 -- 业务总表

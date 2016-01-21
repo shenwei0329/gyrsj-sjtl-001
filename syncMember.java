@@ -1,3 +1,12 @@
+/*
+ * 构建Hbase下的“人物”主题数据集
+ * ===========================
+ * 2016.1.18 Created by shenwei @GuiYang
+ *
+ * -2016.1.21：增加人与人之间的关联信息
+ *
+ */
+
 import java.io.IOException;
 
 import org.apache.hadoop.conf.Configuration;
@@ -335,8 +344,8 @@ public class syncMember {
         // 创建表
         String tableName[] = {"rsj_member"};
         String[][] family = {
-                             {"info","login","col","index","flg","yw_sn","start_date","end_date","member",
-                                "post","subject","dlt_time","dlt_rate","sn","message"}
+                             {"info","login","index","flg","yw_sn","start_date","end_date","member",
+                                "post","subject","dlt_time","dlt_rate","sn","message","col","col_member","col_message"}
                             };
         int i = 0;
         String s;
@@ -363,6 +372,7 @@ public class syncMember {
             Statement stmt = conn.createStatement();
 
             // 添加业务流水 到 “流程”主题库
+            //sql = "select member_id,uuid,flg,t_stamp,create_date from member_log";
             sql = "select member_id,uuid,flg,t_stamp,create_date from member_log where create_date>"+now_date;
             ResultSet rs = stmt.executeQuery(sql);
 
@@ -414,6 +424,50 @@ public class syncMember {
                     }
                 }
 
+            }
+
+            // 添加人与人之间的关联信息
+            //sql = "select id,sender_id,receiver_id,message,create_date from col_user_message";
+            sql = "select id,sender_id,receiver_id,message,create_date from col_user_message where create_date>"+now_date;
+            rs = stmt.executeQuery(sql);
+
+            String id,sender_id,receiver_id,message,create_date;
+
+            while (rs.next()) {
+
+                id = rs.getString(1);
+                sender_id = rs.getString(2);
+                receiver_id = rs.getString(3);
+                message = rs.getString(4);
+                create_date = rs.getString(5);
+
+                //System.out.println(">>> +[ "+sender_id+" ].[ "+tableN+" ].[ "+create_date+" ].] "+receiver_id+" ].[ "+message+" ]");
+
+                addData(sender_id,tableN, "col",create_date,id);
+                addData(sender_id,tableN, "col_member",id,receiver_id);
+                addData(sender_id,tableN, "col_message",id,message);
+
+                addData(receiver_id,tableN, "col",create_date,id);
+                addData(receiver_id,tableN, "col_member",id,sender_id);
+                addData(receiver_id,tableN, "col_message",id,message);
+
+            }
+
+            // 添加人员登录日志
+            //sql = "select member_id,login,logout,ip from login_log";
+            sql = "select member_id,login,logout,ip from login_log where login>"+now_date;
+            rs = stmt.executeQuery(sql);
+
+            String login,logout,ip_addr;
+
+            while (rs.next()) {
+
+                memberID = rs.getString(1);
+                login = rs.getString(2);
+                logout = rs.getString(3);
+                ip_addr = rs.getString(4);
+
+                addData(memberID,tableN, "login",login,logout+"@"+ip_addr);
             }
 
         } catch (SQLException e) {

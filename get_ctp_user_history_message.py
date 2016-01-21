@@ -33,24 +33,20 @@ def do_rec(cur,cur_mysql,in_sql):
             for i in range(cnt):
                 if i!=0:
                     sql += ','
-                    if i==3:
-                        text = one[i]
-                        summary_id = get_summary_id_by_subject(cur_mysql,text)
-                        #print summary_id
                 else:
                     id = one[0]
                 sql += '"'+str(one[i])+'"'
         else:
             break
-        sql += ",1,%s)" % str(summary_id)
-        if utils.is_include(cur_mysql,'ctp_user_history_message',id)==0:
+        sql += ")"
+        if utils.is_include(cur_mysql,'col_user_message',id)==0:
             #print("++++")
             #print(sql)
             cur_mysql.execute(sql)
 
 tables = [{	"select":"id,sender_id,receiver_id,message_content,creation_date",
         "table":"ctp_user_history_message where creation_date>=to_date('2015-12-28 00:00:00','yyyy-mm-dd hh24:mi:ss')  order by creation_date",
-        "mysql_table":'ctp_user_history_message(id,sender_id,receiver_id,message,create_date,flg,summary_id) values(',
+        "mysql_table":'col_user_message(id,sender_id,receiver_id,message,create_date) values(',
     }]
 
 cur_mysql = utils.mysql_conn()

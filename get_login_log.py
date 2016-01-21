@@ -36,9 +36,9 @@ def do_rec(cur,cur_mysql,in_sql):
 		#print(sql)
 		cur_mysql.execute(sql)
 
-tables = [{	"select":"member_id,logon_time",
+tables = [{	"select":"id,member_id,logon_time,logout_time,ip_address",
 		"table":'logon_log where logon_time=logout_time order by logon_time',
-		"mysql_table":'login_log(member_id,login_time) values(',
+		"mysql_table":'login_log(id,member_id,login,logout,ip) values(',
 	}]
 
 cur_mysql = utils.mysql_conn()
