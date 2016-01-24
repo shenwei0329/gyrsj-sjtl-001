@@ -667,3 +667,13 @@ create TABLE pri_log (
   message varchar(255) -- 信息
 ) default charset=utf8;
 
+-- 数据铁笼应用-信息交换
+create TABLE ex_message (
+  sender begint NOT NULL,
+  reader begint NOT NULL,
+  send_message varchar(255) NOT NULL,
+  reply_message varchar(255),
+  flg int NOT NULL,
+  send_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  read_date datetime
+) default charset=utf8;
