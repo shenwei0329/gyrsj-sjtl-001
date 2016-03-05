@@ -559,6 +559,7 @@ def send_info(cur_mysql,user_id,message):
 
 def send_message_to_oa(ip,user,message):
 
+    """
     token = "0"
 
     cmd = 'curl http://%s/seeyon/rest/token ' % ip
@@ -579,6 +580,8 @@ def send_message_to_oa(ip,user,message):
     r = os.popen(cmd)
     s = r.read().split('\r\n')
     #print s
+    """
+    return
 
 # 2015-12-23
 # 用于接收向铁笼系统的信息反馈
@@ -847,6 +850,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
         sn = str(one[5])
         yw_sn = str(one[6])
 
+        """
         if (("人力资源服务许可" in subject) or ("劳务派遣" in subject) or ("自动发起" in subject)) and resent_time!="None":
 
             d = datetime.datetime.strptime(resent_time,"%Y-%m-%d %H:%M:%S")
@@ -867,6 +871,7 @@ def one_hour(cur_mysql,cur_mysql1,cur_mysql2):
 
                 sql = 'update col_summary set cnt=-1 where id="%s"' % summary_id
                 cur_mysql1.execute(sql)
+        """
 
     # 业务总期限（8天）提前2天预警
     sql = 'select subject,resent_time,line_id,yw_sn from col_summary where deadline=2 and state=0 and line_id>0 order by start_date'
