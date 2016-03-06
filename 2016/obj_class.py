@@ -10,7 +10,7 @@
 __author__ = 'shenwei'
 
 import utils
-import datetime
+import datetime,time
 
 _debug_level = 0
 
@@ -154,7 +154,7 @@ class k_db_scan(object):
         self.scan_hdr = scan_hdr
         super(k_db_scan,self).__init__()
 
-    def scan(self,where=None):
+    def scan(self,where=None,record=None):
         _cur = utils.mysql_conn()
         if where is not None:
             _sql = self.sql + " where " + where
@@ -167,7 +167,10 @@ class k_db_scan(object):
         if _cnt>0:
             for _ in range(_cnt):
                 one = _cur.fetchone()
-                self.scan_hdr(one)
+                if record is not None:
+                    self.scan_hdr(one,record=record)
+                else:
+                    self.scan_hdr(one)
         _cur.close()
         _debug(0,"k_db_scan [%s]" % _sql)
 
@@ -503,27 +506,49 @@ class c_legalperson(k_object):
             self.declare_quota = c_quota(id=self.get('declare_quota_id'),writeable=True)
             self.social_quota = c_quota(id=self.get('social_quota_id'),writeable=True)
 
-class System():
+class System(object):
 
     def __init__(self):
         self.org_name = '贵阳市人力资源和社会保障局'
         self.app_name = '数据铁笼'
-        self.scan_affair = k_db_scan()
-        self.scan_affair_alarm = k_db_scan()
+        # 创建一个 扫描类，其元数据的 源 指向一个 ctp_affair 和 col_summary 的联合
+        # 属性：事务ID、业务流水号、环节、状态（0：待办中，3：完成）、接收时间、完成时间、待办人、主题
+        self.affair_scan = k_db_scan({'table':'ctp_affair a,col_summary b',
+                      'field':['a.id','b.yw_sn','a.node_policy','b.state',
+                               'a.receive_time','a.complete_time',
+                               'a.member_id','a.subject']},my_scan_hdr)
+        # 创建一个 记录类，用于管理 affair_trace 记录
+        self.affair_trace = c_record({'table':'affair_trace','id':0,
+                                      'field':['affair_id','sn','node','state','start_time','end_time','member','subject','take','comment']},
+                                     writeable=True)
+        # 选择 已完成 事务
+        self.where_0='a.create_date=b.create_date and a.subject=b.subject and b.yw_sn!="NULL" and b.state=3 and ' \
+                     'COMPLETE_TIME is not NULL order by a.receive_time'
+        # 选择 未完成 事务
+        # 过滤掉 collaboration[协作] 发起环节
+        self.where_1='a.create_date=b.create_date and a.subject=b.subject and b.yw_sn!="NULL" and COMPLETE_TIME is NULL ' \
+                     'and b.state=0 and a.node_policy!="collaboration" ' \
+                     'order by a.receive_time'
+        self._exit = False
+        super(System,self).__init__()
 
     def _sleep(self):
-        pass
+        # 休眠 60 秒
+        time.sleep(60)
 
-    def hasAffair(self):
+    def doChkAffair(self):
         """
         判断是否有新的事务
             若有，则：
                 1）
         :return:
         """
-        pass
+        # 扫描已完成事务
+        self.affair_scan.scan(where=self.where_0,record=self.affair_trace)
+        # 扫描未完成事务
+        self.affair_scan.scan(where=self.where_1,record=self.affair_trace)
 
-    def hasAlarm(self):
+    def doChkAlarm(self):
         """
         判断是否需要发送预警！
             若发现 预警：
@@ -531,9 +556,10 @@ class System():
                 2）若不存在，则发送消息，修改计量 risk_quota 下 scope 的min（1级）和avg（1级以上）
         :return:
         """
-        pass
+        # 扫描未完成事务
+        self.affair_scan.scan(where=self.where_1)
 
-    def hasRisk(self):
+    def doChkRisk(self):
         """
         判断是否需要发送风险事件！
             若发现 风险：
@@ -541,45 +567,87 @@ class System():
                 2）若不存在，则发送消息，修改计量 risk_quota 下 scope 的max
         :return:
         """
-        pass
+        # 扫描未完成事务
+        self.affair_scan.scan(where=self.where_1)
+        self._exit = True
 
     def run(self):
         """
         处理机：一个运行的进程实体
-            while Ture:
-
-                if hasAffair():
-                    判读是否有 新的事务 要处理
-                if hasAlarm():
-                    判读是否有 新的预警事件 要处理
-                if hasRisk():
-                    判断是否有 新的风险事故 要处理
-
-                self._sleep()
-
         :return:
         """
-        pass
+        while not self._exit:
+            self.doChkAffair()
+            self.doChkAlarm()
+            self.doChkRisk()
+            self._sleep()
+            _debug(0,"System run _sleep wakeup!")
 
-def my_scan_hdr(one):
-    affair_trace = c_record({'table':'affair_trace','id':0,
-                             'field':['affair_id','sn','node','state','start_time','end_time','member','subject','take','comment']},
-                            writeable=True)
-    if str(one[4])!='None' and str(one[5])!='None':
-        _take = utils.cal_workdays(utils.mysql_conn(),str(one[4]),str(one[5]))
-    else:
-        _take = 0
+def my_scan_hdr(one,recode=None):
+    """
+    事务扫描过程处理器
+    :param one:
+        事务记录
+    :return:
+    """
+    # 判断是否是新记录
+    _new = True
+    if recode is not None:
+        _where = 'affair_id="%s"' % str(one[0])
+        _rec = recode.search(_where)
+        if len(_rec)>0:
+            _new = False
 
+    # 不是新记录，且已办理完成的，不需要考虑风险
+    if (not _new) and (int(str(one[3]))>0):
+        return
+
+    # 清洗 环节node 数据
     _node = str(one[2])
     if _node in ['collaboration','inform','vouch']:
         _node = '政务大厅'
 
-    affair_trace.insert([str(one[0]),str(one[1]),_node,int(str(one[3])),
+    # 针对一个已完成的 环节node，应该同时具有 接收时间 和 完成时间
+    _take = 0
+    if str(one[4])!='None' and str(one[5])!='None':
+        # 计算这两个时间的间隔，此值就是该环节花费的时间
+        _take = utils.cal_workdays(utils.mysql_conn(),str(one[4]),str(one[5]))
+    else:
+        # 若只有一个时间，则表示该事务可能还停留在此 环节node 上
+        # 当用于风险扫描时，应该看看是否有超时限的可能，现在距离 接收时间 的时间间隔？
+        if int(str(one[3]))==0 and recode is None:
+            # 当前时间
+            _now = datetime.datetime.now()
+            _take = utils.cal_workdays(utils.mysql_conn(),str(one[4]),_now)
+            """
+            判断是否超时
+            _lvl = utils.beAlarm(_take,_node)
+            if _lvl>0:
+                # 有风险！
+                # fr_member_id decimal(38,0) NOT NULL COMMENT '发起人ID',
+                # to_member_id decimal(38,0) NOT NULL COMMENT '接收人ID',
+                # sn VARCHAR (80) NOT NULL COMMENT '业务标识，如流水号',
+                # node VARCHAR (80) NOT NULL COMMENT '环节',
+                # level INT NOT NULL COMMENT '等级，预警：1,2,3；风险：4,5；信息：0',
+                # info VARCHAR (255) NOT NULL COMMENT '说明',
+                # type INT NOT NULL COMMENT '0：发起；1：回复；2：处治',
+                # readed INT NOT NULL COMMENT '0：未读；1：已读'
+                #
+                # 'field':[
+                #      0     1           2         3          4              5             6           7
+                #    'id','yw_sn','node_policy','state','receive_time','complete_time','member_id','subject'
+                #         ]
+                _message = {'fr_member':str(one[6]),'sn':str(one[1]),'node':_node,'level':_lvl}
+                utils.send_message(_message)
+            """
+
+    if recode is None:
+        return
+
+    # 记录该事务过程到 affair_trace 中
+    recode.insert([str(one[0]),str(one[1]),_node,int(str(one[3])),
                          str(one[4]),str(one[5]),str(one[6]),
                          str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"])
-    print("----------")
-    for v in one:
-        print("\t%s" % str(v))
 
 def build_member():
     """
@@ -596,53 +664,9 @@ def build_member():
 
 if __name__ == '__main__':
 
-    _sql = 'select a.member_id,b.yw_sn,a.node_policy,a.subject,a.COMPLETE_TIME from ctp_affair a,col_summary b ' \
-           'where a.create_date=b.create_date and a.subject=b.subject and b.yw_sn!="NULL" ' \
-           'and COMPLETE_TIME is NULL and b.state=0 and a.node_policy!="collaboration" ' \
-           'order by a.receive_time;'
-
     # 初始化 member 对象数据
     # 2016-3-6 完成
     #build_member()
 
-    scan = k_db_scan({'table':'ctp_affair a,col_summary b',
-                      'field':['a.id','b.yw_sn','a.node_policy','b.state',
-                               'a.receive_time','a.complete_time',
-                               'a.member_id','a.subject']},my_scan_hdr)
-
-    # 已完成事务
-    where_0='a.create_date=b.create_date and a.subject=b.subject and b.yw_sn!="NULL" and b.state=3 and ' \
-            'COMPLETE_TIME is not NULL order by a.receive_time'
-    # 未完成事务
-    where_1='a.create_date=b.create_date and a.subject=b.subject and b.yw_sn!="NULL" and COMPLETE_TIME is NULL ' \
-          'and b.state=0 and a.node_policy!="collaboration" ' \
-          'order by a.receive_time'
-    # 扫描已完成事务
-    scan.scan(where=where_0)
-    # 扫描未完成事务
-    scan.scan(where=where_1)
-
-    """
-    member = c_member(id="-10030045",values=['-10030045','shenwei','01234567890','13880575001'],writeable=True,create=True,hasid=True)
-    legal = c_legalperson(values=['legal_person shenwei','01234567890','13880575001'],writeable=True,create=True)
-    legal1 = c_legalperson(id=legal.get_id())
-    org = c_org(values=['org_code','org_001','chengdu','sphere-None',legal.get_id()],writeable=True,create=True)
-    org1 = c_org(id=org.get_id())
-    affair_trace = c_record({'table':'affair_trace','id':0,
-                             'field':['sn','node','state','start_time','end_time','member','subject','take','comment']},
-                            writeable=True)
-    affair_trace.insert(['sn-001','复审',3,'2016-03-06 12:00:00','2016-03-06 12:12:00',member.get_id(),'测试事务-001',12,'通过'])
-    print str(affair_trace.search('member="shenwei"'))
-
-    message_rec = c_record({'table':'message_rec','id':0,
-                             'field':['start_date','end_date',
-                                      'fr_member_id','to_member_id','sn','node','level','info','type','readed']},
-                            writeable=True)
-    message_rec.insert(['2016-03-06 12:00:00','2016-03-06 12:12:00',member.get_id(),member.get_id(),'sn-001','复审',1,'测试1级预警',1,0])
-    print str(affair_trace.search('sn="sn-001"'))
-
-    member.addAffair("member")
-    print("member.id = %s" % member.get_id())
-    member1 = c_member(id="-10030045",writeable=True)
-    member1.addAffair("member1")
-    """
+    system = System()
+    system.run()
