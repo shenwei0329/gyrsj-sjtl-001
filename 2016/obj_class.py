@@ -575,8 +575,8 @@ def my_scan_hdr(one):
         _node = '政务大厅'
 
     affair_trace.insert([str(one[0]),str(one[1]),_node,int(str(one[3])),
-                         str(one[4]),str(one[5]),str(one[6]),str(one[7]),
-                         _take,"-"])
+                         str(one[4]),str(one[5]),str(one[6]),
+                         str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"])
     print("----------")
     for v in one:
         print("\t%s" % str(v))
