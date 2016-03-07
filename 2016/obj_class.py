@@ -12,13 +12,13 @@ __author__ = 'shenwei'
 import utils
 import datetime,time
 
-_debug_level = 0
+_debug_level = 4
 
 def _debug(lvl,info):
     if lvl >= _debug_level:
         print(">>>%s %s\t%s") % (
             datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "INFO" if lvl==0 else "WARN" if lvl==1 else "ERROR",
+            "INFO" if lvl==0 else "WARN" if lvl==1 else "ERROR" if lvl==2 else "DEBUG",
             info
         )
 
@@ -78,10 +78,10 @@ class k_db(object):
         _i = 0
         for v in values:
             if _i == 0:
-                _value = "%d" % v if type(v) is int else '"%s"' % v
+                _value = '%d' % v if type(v) is int or type(v) is long else '"%s"' % v
                 _i = 1
             else:
-                _value += ",%d" % v if type(v) is int else ',"%s"' % v
+                _value += ",%d" % v if type(v) is int or type(v) is long else ',"%s"' % v
 
         self.sql = "insert into %s(%s) values(%s)" % (self.table,_field,_value)
         _debug(1,self.sql)
@@ -93,7 +93,7 @@ class k_db(object):
             _cur = utils.mysql_conn()
             self.sql = 'update %s set %s=%s where id=%s' % \
                        (self.table,
-                        field,'%d' % data if type(data) is int else '"%s"' % data,
+                        field,'%d' % data if type(data) is int or type(data) is long else '"%s"' % data,
                         str(self.id))
             _cur.execute(self.sql)
             _cur.close()
@@ -111,7 +111,7 @@ class k_db(object):
                 one = _cur.fetchone()
                 _entry.append(one)
         _cur.close()
-        _debug(0,"k_object db_select [%s]" % self.sql)
+        _debug(3,"k_object db_select [%s]" % self.sql)
         return _entry
 
     def db_insert(self,hasid=False):
@@ -163,16 +163,19 @@ class k_db_scan(object):
 
         _debug(0,"k_db_scan scan[%s]" % _sql)
 
+        _ret = []
         _cnt = _cur.execute(_sql)
         if _cnt>0:
             for _ in range(_cnt):
                 one = _cur.fetchone()
                 if record is not None:
-                    self.scan_hdr(one,record=record,node=node,record_rec=record_rec)
+                    _v = self.scan_hdr(one,record=record,node=node,record_rec=record_rec)
                 else:
-                    self.scan_hdr(one,node=node)
+                    _v = self.scan_hdr(one,node=node)
+                _ret.append(_v)
         _cur.close()
         _debug(0,"k_db_scan [%s]" % _sql)
+        return _ret
 
 class k_object(k_db):
     """
@@ -205,7 +208,9 @@ class k_object(k_db):
         获取指定值域的值
         """
         if field in self.field:
-            if type(self.id) is int:
+
+            _debug(3,">>> k_object get self.id.type = %s" % type(self.id))
+            if type(self.id) is int or type(self.id) is long:
                 self.sql = 'select %s from %s where id=%s' % (field,self.table,str(self.id))
             else:
                 self.sql = 'select %s from %s where id="%s"' % (field,self.table,str(self.id))
@@ -228,7 +233,10 @@ class k_object(k_db):
                 _i = 1
             else:
                 _str += ",%s" % _f
-        self.sql = 'select %s from %s where id=%s' % (_str,self.table,str(self.id))
+        if type(self.id) is int or type(self.id) is long:
+            self.sql = 'select %s from %s where id=%s' % (_str,self.table,str(self.id))
+        else:
+            self.sql = 'select %s from %s where id="%s"' % (_str,self.table,str(self.id))
         return self.db_select()[0]
 
     def get_id(self):
@@ -274,10 +282,10 @@ class c_record(k_db):
         _i = 0
         for v in values:
             if _i == 0:
-                _value = "%d" % v if type(v) is int else '"%s"' % v
+                _value = "%d" % v if type(v) is int or type(v) is long else '"%s"' % v
                 _i = 1
             else:
-                _value += ",%d" % v if type(v) is int else ',"%s"' % v
+                _value += ",%d" % v if type(v) is int or type(v) is long else ',"%s"' % v
 
         self.sql = "insert into %s(%s) values(%s)" % (self.table,_field,_value)
         _debug(0,self.sql)
@@ -339,13 +347,16 @@ class c_quota(k_object):
                 ,0,0,0,0,0,0,0,0,0,0,0,0
             ]
         else:
+            self.id = id
             _v = None
         # 获取与其相关联的趋势对象
         self.scope = c_scope(id=self.get_id(),values=_v,writeable=writeable,create=create)
 
     def add(self,value):
-        _v = int(self.get('mass')) + int(value)
-        self.set('mass',_v)
+        _v = self.get('mass')
+        if _v is not None:
+            _v = int(_v) + int(value)
+            self.set('mass',_v)
         return _v
 
     def addScope(self,index,type,value):
@@ -387,7 +398,7 @@ class c_member(k_object):
     人员类
     """
 
-    def __init__(self,id="",values=None,writeable=False,create=False,hasid=False):
+    def __init__(self,id=0,values=None,writeable=False,create=False,hasid=False):
         self._metadata = {
             'table':'member',
             'id':id,
@@ -406,7 +417,7 @@ class c_member(k_object):
             values.append(self.risk_quota.get_id())
         super(c_member,self).__init__(self._metadata,values=values,writeable=writeable,create=create,hasid=hasid)
         if not create:
-            self.credit_quota = c_quota(id=self.get('credit_quota_id'),writeable=True)
+            self.credit_quota = c_quota(id=self.get('credit_quota_id'),writeable=True,)
             self.load_quota = c_quota(id=self.get('load_quota_id'),writeable=True)
             self.eff_quota = c_quota(id=self.get('eff_quota_id'),writeable=True)
             self.risk_quota = c_quota(id=self.get('risk_quota_id'),writeable=True)
@@ -518,7 +529,11 @@ class c_legalperson(k_object):
             values.append(self.social_quota.get_id())
         super(c_legalperson,self).__init__(self._metadata,values=values,writeable=writeable,create=create)
         if not create:
-            self.credit_quota = c_quota(id=self.get('credit_quota_id'),writeable=True)
+            _id = self.get('credit_quota_id')
+            _debug(3,">>> c_legalperson __init__ _id.type = %s" % type(_id))
+            if _id is not None:
+                _id = int(_id)
+            self.credit_quota = c_quota(id=_id,writeable=True)
             self.declare_quota = c_quota(id=self.get('declare_quota_id'),writeable=True)
             self.social_quota = c_quota(id=self.get('social_quota_id'),writeable=True)
 
@@ -536,6 +551,9 @@ class System(object):
                                'b.org_code','b.org_name','b.org_addr','b.org_capital','b.org_reg_number','b.org_reg_addr',
                                'legal_person','legal_person_tel','legal_person_cid'
                                ]},my_scan_hdr)
+        # 扫描 affair_rec，以统计 某月份的 min,avg,max
+        self.affair_rec_scan = k_db_scan({'table':'affair_rec',
+                      'field':['member','take']},scan_scope_hdr)
         # 创建一个 记录类，用于管理 affair_trace 记录
         self.affair_trace = c_record({'table':'affair_trace','id':0,
                                       'field':['affair_id','sn','node','state','start_time','end_time','member',
@@ -546,6 +564,10 @@ class System(object):
                                       'field':['sn','node','start_time','end_time','member',
                                                'subject','take','comment']},
                                      writeable=True)
+        self.message_rec = c_record({'table':'message_rec','id':0,
+                                     'field':['fr_member_id','to_member_id','sn','subject','node','level',
+                                              'info','type','readed']},
+                                    writeable=True)
         # 选择 已完成 事务
         self.where_0='a.create_date=b.create_date and a.subject=b.subject and b.yw_sn!="NULL" and b.state=3 and ' \
                      'a.COMPLETE_TIME is not NULL order by a.receive_time'
@@ -578,6 +600,40 @@ class System(object):
         self.affair_scan.scan(where=self.where_0,record=self.affair_trace,record_rec=self.affair_rec)
         # 扫描未完成事务
         self.affair_scan.scan(where=self.where_1,record=self.affair_trace,record_rec=self.affair_rec)
+        # 扫描 获取 人员的 趋势数据
+        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 1) #time.localtime().tm_mon)
+        self.calEff(_rec,1)
+        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 2) #time.localtime().tm_mon)
+        self.calEff(_rec,2)
+        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 11) #time.localtime().tm_mon)
+        self.calEff(_rec,11)
+        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 12) #time.localtime().tm_mon)
+        self.calEff(_rec,12)
+
+    def calEff(self,_rec,_month):
+        _member_cal = {}
+        for _r in _rec:
+            _debug(4,">>> _r[%s]" % str(_r))
+            _member = _r['member']
+            _val = _r['value']
+            if _member in _member_cal:
+                _min = _member_cal[_member][0]
+                _max = _member_cal[_member][1]
+                _member_cal[_member][2] += _val
+                _member_cal[_member][3] += 1
+                if _val < _min:
+                    _member_cal[_member][0] = _val
+                if _val > _max:
+                    _member_cal[_member][1] = _val
+            else:
+                _member_cal[_member] = [_r['value'],_r['value'],_r['value'],1]
+
+        for _k in _member_cal.keys():
+            _v = _member_cal[_k]
+            _member = c_member(id=int(_k))
+            _member.eff_quota.setScope(_month,'min',_v[0]*10)
+            _member.eff_quota.setScope(_month,'max',_v[1]*10)
+            _member.eff_quota.setScope(_month,'avg',(_v[2]*10)/_v[3])
 
     def doChkAlarm(self):
         """
@@ -600,19 +656,29 @@ class System(object):
         """
         # 扫描未完成事务
         self.affair_scan.scan(where=self.where_1)
-        self._exit = True
+
+    def sendMessage(self,fr_member,to_member,sn,subject,node,level,info):
+        self.message_rec.insert([fr_member,to_member,sn,subject,node,level,info,0,0])
 
     def run(self):
         """
         处理机：一个运行的进程实体
         :return:
         """
+        self.sendMessage("-","-","TEST001",'subject','Node',0,'Test 测试')
         while not self._exit:
             self.doChkAffair()
-            self.doChkAlarm()
-            self.doChkRisk()
+            #self.doChkAlarm()
+            #self.doChkRisk()
+            self._exit = True
             self._sleep()
             _debug(0,"System run _sleep wakeup!")
+
+def scan_scope_hdr(one,record=None,node=1,record_rec=None):
+    _debug(3,">>> scan_scope_hdr [%s]" % str(one))
+    _member = str(one[0])
+    _val = int(str(one[1]))
+    return {'member':_member,'value':_val}
 
 def my_scan_hdr(one,record=None,node=1,record_rec=None):
     """
@@ -647,6 +713,9 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     if (not _new) and (int(str(one[3]))>0):
         return
 
+    # 当前月份
+    _month = time.localtime().tm_mon
+
     _start_time = str(one[4])
     _end_time = str(one[5])
 
@@ -659,17 +728,22 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
             _node = '受理'
             _end_time = _start_time
             # 获取该申请的受理时间
-            _time = utils.get_summary_feild_value(utils.mysql_conn(),str(one[8]),"受理时间")
+            _cur = utils.mysql_conn()
+            _time = utils.get_summary_feild_value(_cur,str(one[8]),"受理时间")
+            _cur.close()
             _debug(0,">>> _time = %s" % str(_time))
             if _time is not None and _time not in ["None","NONE","NULL","Null",""] and ":" in _time and "-" in _time:
                 _start_time = _time
         else:
             _node = '政务大厅'
+    if _node in ['inform']:
+        _node = '办结'
+    if _node in ['领导审批意见']:
+        _node = '审批'
+    if _node in ['现场审查']:
+        _node = '现场'
 
     if _node is '受理' and _new:
-
-        # 当前月份
-        _month = 3
 
         # 数据清洗
         _org_code = str(one[9])
@@ -679,6 +753,8 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         if _person_name in ['None','NONE','NULL','Null',""]:
             _person_name = "测试-法人"
 
+        _debug(3,">>> _person_name = %s" % _person_name)
+
         # 创建 obj 和 legal_person 对象
         #
         # 创建 legal_person 对象
@@ -686,10 +762,15 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _person.sql = 'select id from %s where name="%s"' % (_person.table,_person_name)
         _id = _person.db_select()
         if len(_id)>0:
-            _id = str(_id[0][0])
-            _person = c_legalperson(id=int(_id))
+            _id = int(str(_id[0][0]))
+
+            _debug(3,">>> _id = %d" % _id )
+            _person = c_legalperson(id=_id)
         else:
             _person = c_legalperson(values=[_person_name,str(one[17]),str(one[16])],writeable=True,create=True)
+
+        _debug(3,">>> _person.id = %d" % _person.get_id())
+
         _person.declare_quota.add(1)
         _person.declare_quota.addAllScope(_month,1)
 
@@ -706,25 +787,22 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _org.declare_quota.add(1)
         _org.declare_quota.addAllScope(_month,1)
 
-    if _node in ['inform']:
-        _node = '办结'
-    if _node in ['领导审批意见']:
-        _node = '审批'
-    if _node in ['现场审查']:
-        _node = '现场'
-
     # 针对一个已完成的 环节node，应该同时具有 接收时间 和 完成时间
     _take = 0
     if _start_time!='None' and _end_time!='None':
         # 计算这两个时间的间隔，此值就是该环节花费的时间
-        _take = utils.cal_workdays(utils.mysql_conn(),_start_time,_end_time)
+        _cur = utils.mysql_conn()
+        _take = utils.cal_workdays(_cur,_start_time,_end_time)
+        _cur.close()
     else:
         # 若只有一个时间，则表示该事务可能还停留在此 环节node 上
         # 当用于风险扫描时，应该看看是否有超时限的可能，现在距离 接收时间 的时间间隔？
         if int(str(one[3]))==0 and record is None:
             # 当前时间
             _now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            _take = utils.cal_workdays(utils.mysql_conn(),_start_time,_now)
+            _cur = utils.mysql_conn()
+            _take = utils.cal_workdays(_cur,_start_time,_now)
+            _cur.close()
             """
             判断是否超时
             _lvl = utils.beAlarm(_take,_node)
@@ -743,22 +821,37 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
                 utils.send_message(_message)
             """
 
-    if record is None:
+    # 人员工作量计量
+    _member = c_member(id=int(str(one[6])))
+
+    _debug(0,">>> _member.id = %s" % _member.get_id())
+
+    _member.load_quota.add(1)
+    _member.eff_quota.setScope(_month,'min',1)
+    _member.eff_quota.setScope(_month,'avg',1)
+    _member.eff_quota.setScope(_month,'max',1)
+
+    # 若不是新纪录 或 不需要记录，则可退出
+    if not _new or record is None:
         return
 
     # 记录该事务过程到 affair_trace 中
     record.insert([str(one[0]),str(one[1]),_node,int(str(one[3])),
                          _start_time,_end_time,str(one[6]),
-                         str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"])
+                         str(one[7]),_take,"-"])
+                         #str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"])
 
     if record_rec is None:
         return
 
+    # 记录该事务过程到 affair_rec 中
     # 'field':['sn','node','start_time','end_time','member','subject','take','comment']
     record_rec.insert(
         [str(one[1]),_node,_start_time,_end_time,str(one[6]),
-         str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"]
+         str(one[7]),_take,"-"]
+         #str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"]
     )
+    return {}
 
 def build_member():
     """
@@ -771,13 +864,19 @@ def build_member():
     if cnt>0:
         for _i in range(cnt):
             one = cur.fetchone()
-            c_member(id=str(one[0]),values=[str(one[0]),str(one[1]),'-','-'],writeable=True,create=True,hasid=True)
+            curr = utils.mysql_conn()
+            cnt = curr.execute('select id from member where id=%s' % str(one[0]))
+            curr.close()
+            if cnt==0:
+                c_member(id=int(str(one[0])),values=[str(one[0]),str(one[1]),'-','-'],writeable=True,create=True,hasid=True)
+                _debug(4,">>> build_member %s" % str(one[1]))
+    cur.close()
 
 if __name__ == '__main__':
 
     # 初始化 member 对象数据
     # 2016-3-6 完成
-    #build_member()
+    build_member()
 
     system = System()
     system.run()

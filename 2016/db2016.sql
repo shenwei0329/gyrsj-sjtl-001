@@ -169,6 +169,7 @@ create TABLE message_rec (
   fr_member_id decimal(38,0) NOT NULL COMMENT '发起人ID',
   to_member_id decimal(38,0) NOT NULL COMMENT '接收人ID',
   sn VARCHAR (80) NOT NULL COMMENT '业务标识，如流水号',
+  subject VARCHAR (255) NOT NULL COMMENT '主题',
   node VARCHAR (80) NOT NULL COMMENT '环节',
   level INT NOT NULL COMMENT '等级，预警：1,2,3；风险：4,5；信息：0',
   info VARCHAR (255) NOT NULL COMMENT '说明',
