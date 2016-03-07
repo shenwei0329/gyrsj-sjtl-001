@@ -1404,6 +1404,9 @@ def cal_workdays(cur_mysql,start_date,end_date):
             if date_d.hour==17 and date_d.minute==30:
                 date_d += datetime.timedelta(hours=15)
 
+        if dlt_time>(8*75*6):
+            break
+
     print(">>>s:%s e:%s dlt_time:%d" % (start_date,end_date,dlt_time))
 
     return dlt_time

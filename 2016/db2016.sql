@@ -130,9 +130,9 @@ create TABLE legal_person (
 
 -- 针对人员的事务记录
 create TABLE affair_rec (
-  member_id decimal(38,0) NOT NULL COMMENT '人员ID',
-  start_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '起始时间',
-  end_date datetime NOT NULL COMMENT '结束时间',
+  member decimal(38,0) NOT NULL COMMENT '人员ID',
+  start_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '起始时间',
+  end_time datetime NOT NULL COMMENT '结束时间',
   subject VARCHAR (255) NOT NULL COMMENT '主题',
   sn VARCHAR (80) NOT NULL COMMENT '业务流水标识，如流水号',
   node VARCHAR (80) NOT NULL COMMENT '业务环节',
@@ -151,7 +151,8 @@ create TABLE affair_trace (
   member decimal(38,0) NOT NULL COMMENT '人员ID，注：当state=1时有效',
   subject VARCHAR (255) NOT NULL COMMENT '主题',
   take INT NOT NULL COMMENT '耗时（分钟）',
-  comment VARCHAR (255) NOT NULL COMMENT '办理时给出的评语'
+  comment VARCHAR (255) NOT NULL COMMENT '办理时给出的评语',
+  PRIMARY KEY (affair_id)
 ) default charset=utf8;
 
 -- 对象与指标的关联表
