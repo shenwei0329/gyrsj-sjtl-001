@@ -585,6 +585,8 @@ create TABLE line_desc (
 ) default charset=utf8;
 
 insert into line_desc(id,info) values(1,'人力资源服务许可'),(2,'劳务派遣行政许可');
+insert into line_desc(id,info) values(3,'人员就业证办理'),(4,'特殊工时工作制');
+insert into line_desc(id,info) values(5,'贵阳市民办职业培训学校'),(6,'技工学校筹设行政许可'),(7,'技工学校设立行政许可');
 
 create TABLE sn_desc (
  line_id int not null, -- 业务线 节点编号
@@ -595,6 +597,11 @@ create TABLE sn_desc (
 
 insert into sn_desc(line_id,id,info) values (1,0,'受理'),(1,1,'初审'),(1,2,'复审'),(1,3,'审批'),(1,4,'办结');
 insert into sn_desc(line_id,id,info) values (2,0,'受理'),(2,1,'初审'),(2,2,'复审'),(2,3,'现场'),(2,4,'审批'),(2,5,'办结');
+insert into sn_desc(line_id,id,info) values (3,0,'受理'),(3,1,'初审'),(3,2,'复审'),(3,3,'现场'),(3,4,'审批'),(3,5,'办结');
+insert into sn_desc(line_id,id,info) values (4,0,'受理'),(4,1,'初审'),(4,2,'复审'),(4,3,'审批'),(4,4,'办结');
+insert into sn_desc(line_id,id,info) values (5,0,'受理'),(5,1,'初审'),(5,2,'复审'),(5,3,'现场'),(5,4,'审批'),(5,5,'办结');
+insert into sn_desc(line_id,id,info) values (6,0,'受理'),(6,1,'初审'),(6,2,'复审'),(6,3,'现场'),(6,4,'审批'),(6,5,'办结');
+insert into sn_desc(line_id,id,info) values (7,0,'受理'),(7,1,'初审'),(7,2,'复审'),(7,3,'现场'),(7,4,'审批'),(7,5,'办结');
 
 -- 业务流水日志
 -- 以“流水号”为基准，按时间轴把过程中出现的每一个事件每都记录起来

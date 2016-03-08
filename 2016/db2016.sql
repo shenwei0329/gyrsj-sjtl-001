@@ -11,10 +11,33 @@ create TABLE q_level (
   level VARCHAR (16) NOT NULL
 ) default charset=utf8;
 
+-- 对象-指标 映射表
+-- 注：在 一期工程 考虑
+create TABLE member_quota (
+  key VARCHAR (24) NOT NULL COMMENT '键值'
+  member decimal(38,0) NOT NULL COMMENT '人员ID',
+  quota int NOT NULL COMMENT '指标ID',
+  PRIMARY KEY (key)
+) default charset=utf8;
+
+create TABLE org_quota (
+  key VARCHAR (24) NOT NULL COMMENT '键值'
+  org INT NOT NULL COMMENT '机构ID',
+  quota int NOT NULL COMMENT '指标ID',
+  PRIMARY KEY (key)
+) default charset=utf8;
+
+create TABLE legalperson_quota (
+  key VARCHAR (24) NOT NULL COMMENT '键值'
+  legalperson INT NOT NULL COMMENT '法人ID',
+  quota int NOT NULL COMMENT '指标ID',
+  PRIMARY KEY (key)
+) default charset=utf8;
+
 -- 指标
 create TABLE quota (
   id INT NOT NULL AUTO_INCREMENT,
-  pid INT NOT NULL,
+  pid INT NOT NULL COMMENT '=-1 代表 人社局 全局指标',
   name VARCHAR (80) NOT NULL,
   mass INT NOT NULL,
   trend INT NOT NULL COMMENT '1:up；0:normal；-1:down',
@@ -134,6 +157,7 @@ create TABLE affair_rec (
   start_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '起始时间',
   end_time datetime NOT NULL COMMENT '结束时间',
   subject VARCHAR (255) NOT NULL COMMENT '主题',
+  org_code VARCHAR (80) NOT NULL COMMENT '机构代码',
   sn VARCHAR (80) NOT NULL COMMENT '业务流水标识，如流水号',
   node VARCHAR (80) NOT NULL COMMENT '业务环节',
   take INT NOT NULL COMMENT '耗时（分钟）',
@@ -150,6 +174,7 @@ create TABLE affair_trace (
   end_time datetime NOT NULL COMMENT '办理的结束时间',
   member decimal(38,0) NOT NULL COMMENT '人员ID，注：当state=1时有效',
   subject VARCHAR (255) NOT NULL COMMENT '主题',
+  org_code VARCHAR (80) NOT NULL COMMENT '机构代码',
   take INT NOT NULL COMMENT '耗时（分钟）',
   comment VARCHAR (255) NOT NULL COMMENT '办理时给出的评语',
   PRIMARY KEY (affair_id)
@@ -164,6 +189,7 @@ create TABLE object_quota (
 
 -- 风险记录
 create TABLE message_rec (
+  id INT NOT NULL AUTO_INCREMENT,
   start_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '发起时间',
   end_date datetime COMMENT '标志readed=1时的时间',
   fr_member_id decimal(38,0) NOT NULL COMMENT '发起人ID',
@@ -174,6 +200,24 @@ create TABLE message_rec (
   level INT NOT NULL COMMENT '等级，预警：1,2,3；风险：4,5；信息：0',
   info VARCHAR (255) NOT NULL COMMENT '说明',
   type INT NOT NULL COMMENT '0：发起；1：回复；2：处治',
-  readed INT NOT NULL COMMENT '0：未读；1：已读'
+  readed INT NOT NULL COMMENT '0：未读；1：已读',
+  PRIMARY KEY (id)
 ) default charset=utf8;
 
+-- 事务办理业务线
+create TABLE affair_line (
+  id INT NOT NULL AUTO_INCREMENT,
+  name VARCHAR (255) NOT NULL COMMENT '业务线名称',
+  sn VARCHAR (80) NOT NULL COMMENT '业务标识，如流水号标识',
+  department VARCHAR (255) NOT NULL COMMENT '办理部门名称',
+  leader VARCHAR (255) NOT NULL COMMENT '分管领导',
+  PRIMARY KEY (id)
+) default charset=utf8;
+
+-- 业务线环节
+create TABLE affair_post (
+  line_id INT NOT NULL COMMENT '事务办理业务线ID',
+  name VARCHAR (255) NOT NULL COMMENT '环节名称',
+  t_limit INT NOT NULL COMMENT '时限',
+  PRIMARY KEY (line_id,name)
+) default charset=utf8;

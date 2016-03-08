@@ -103,7 +103,7 @@ def sync_line_id(cur,line_id,id,name,field):
     # 2015-12-22 修改：增加 and id=%s 条件，相同的表单ID可以在不同的line_id存在，例如“特权”表单
     cnt = cur.execute('select id from line_def where form_def_id="%s" and id=%s' % (id,line_id))
     if cnt==0:
-        #print(">>> %d-%s.%s.%s <<<" % (line_id,id,name,field))
+        print(">>> %d-%s.%s.%s <<<" % (line_id,id,name,field))
         cur.execute('insert into line_def(id,form_def_id,name,formmain_name,deadline) values(%d,%s,"%s","%s",8)' % (line_id,id,name,field))
 
 # 从OA的表单定义表中获取“主表域定义信息”
@@ -129,7 +129,9 @@ def get_form(cur_oracle,cur_mysql,line_id,desc):
                 field = 'formmain_'+field_info[idx+9:idx+9+4]
             else:
                 field = 'formmain_0000'
+
             if desc in name:
+                print(">>> name=%s, desc=%s, line_id=%s, id=%s" % (name,desc,str(line_id),str(id)))
                 #判断表单名称中是否包含关键字，如人力资源、劳动派遣等
                 sync_line_id(cur_mysql,line_id,id,name,field)
         else:
@@ -149,11 +151,14 @@ def get_formmain(cur,line_id):
 def sync_formmain(cur_oracle,cur_mysql,formmain_name):
     # 按formmain_name名称获取表记录
     cur = cur_oracle.execute('select * from %s order by start_date' % formmain_name)
+
+    print(">>> sync_formmain:%s" % formmain_name)
     while 1:
         one = cur.fetchone()
         if one is not None:
             # 判断该记录是否已经被同步
             id = str(one[0])
+            print("\tformmain id=%s" % id)
             if is_include(cur_mysql,'formmain',id)>0:
                 # 2015-12-27 因情况复杂，所以执行强行同步：已有的表删除，重新加入新记录
                 cur_mysql.execute('delete from formmain where id="%s"' % id)
@@ -1560,6 +1565,20 @@ def build_ServiceObject(cur_mysql,summary_id):
     rec['operator_tel'] = get_summary_feild_value(cur_mysql,summary_id,"经办人联系电话")
 
     return rec
+
+# 根据 当事人 和 风险级别 确定通知对象
+#
+def get_receiver( member,level ):
+    _cur = mysql_conn()
+    #
+    # org_post: 纪检、分管领导、处长、一般人员
+    # org_unit: 部门
+    #
+    # 若 当事人 不是 （分管领导 & 处长）
+    # ：处长 = 与当事人在相同部门（org_department_id相同) & org_post
+    #
+    _cur.close()
+    return []
 
 #
 # Eof

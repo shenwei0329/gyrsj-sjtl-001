@@ -6,6 +6,9 @@
 #
 #   运行系统：创造一个模拟的市人事局生态。这是一个实现有生命的实体的程序
 #
+#   待考虑事项：（注：在一期工程考虑）
+#   1）引用 k-v 模式建立 对象的标量，实现动态、弹性关联
+#
 
 __author__ = 'shenwei'
 
@@ -60,7 +63,7 @@ class k_db(object):
 
         self.writeable = writeable
         self.sql = ""
-        if create:
+        if create and values is not None:
             self._create(values,hasid=hasid)
         super(k_db,self).__init__()
 
@@ -95,6 +98,9 @@ class k_db(object):
                        (self.table,
                         field,'%d' % data if type(data) is int or type(data) is long else '"%s"' % data,
                         str(self.id))
+
+            _debug(5,"k_object db_update [%s]" % self.sql)
+
             _cur.execute(self.sql)
             _cur.close()
 
@@ -161,8 +167,6 @@ class k_db_scan(object):
         else:
             _sql = self.sql
 
-        _debug(0,"k_db_scan scan[%s]" % _sql)
-
         _ret = []
         _cnt = _cur.execute(_sql)
         if _cnt>0:
@@ -209,11 +213,12 @@ class k_object(k_db):
         """
         if field in self.field:
 
-            _debug(3,">>> k_object get self.id.type = %s" % type(self.id))
+            _debug(5,">>> k_object get self.id.type = %s" % type(self.id))
             if type(self.id) is int or type(self.id) is long:
                 self.sql = 'select %s from %s where id=%s' % (field,self.table,str(self.id))
             else:
                 self.sql = 'select %s from %s where id="%s"' % (field,self.table,str(self.id))
+            _debug(5,">>> k_object get sql = %s" % self.sql)
             _rec = self.db_select()
             if len(_rec)>0:
                 return _rec[0][0]
@@ -362,7 +367,7 @@ class c_quota(k_object):
     def addScope(self,index,type,value):
         if index in range(1,13) and type in ['min','avg','max']:
             _field = "m%d_%s" % (index,type)
-            _value = self.scope.get(_field) + 1
+            _value = int(self.scope.get(_field)) + 1
             self.scope.set(_field,_value)
         else:
             _debug(1,'c_quota setScope invalid[%d,%s,%d]' % (index,type,int(value)))
@@ -421,64 +426,6 @@ class c_member(k_object):
             self.load_quota = c_quota(id=self.get('load_quota_id'),writeable=True)
             self.eff_quota = c_quota(id=self.get('eff_quota_id'),writeable=True)
             self.risk_quota = c_quota(id=self.get('risk_quota_id'),writeable=True)
-        self._affair_rec_metadata = {'table':'affair_rec',
-                                     'id':self.get_id(),
-                                     'field':[
-                                        'member_id'
-                                        ,'start_date'
-                                        ,'end_date'
-                                        ,'subject'
-                                        ,'sn'
-                                        ,'node'
-                                        ,'take'
-                                        ,'comment'
-                                     ]}
-        self.affair_rec = c_record(self._affair_rec_metadata,writeable=True)
-
-    def addAffair(self,affair):
-        """
-        处理本人的事务
-        :param affair: 事务记录
-            {'create_date':,'sn':,'subject':,'node':,'start_time':,'end_time':,''}
-        :return:
-        """
-        # 从 affair 中解析出需要的参数，如月份、耗时、环节、评语、流水号、主题、时间戳...
-        _index = 1  # 月份
-        _load = 1   # 难度系数
-        _v = self.load_quota.add(_load)
-        self.load_quota.setAllScope(_index,_v)
-        _max = 100
-        _avg = 50
-        _min = 20
-        self.eff_quota.set('mass',_v)
-        self.eff_quota.setScope(_index,"max",_max)
-        self.eff_quota.setScope(_index,"avg",_avg)
-        self.eff_quota.setScope(_index,"min",_min)
-        self.risk_quota.set('mass',_v)
-        self.risk_quota.setScope(_index,"max",_max) # 风险数
-        self.risk_quota.setScope(_index,"avg",_avg) # 三级预警数
-        self.risk_quota.setScope(_index,"min",_min) # 三级以下预警数
-        # 增加 affair_rec 记录
-        _rec = [self.get_id(),'2016-03-08 00:00:00','2016-03-08 00:00:00','测试记录-%s' % affair,'TST001','初审',5,'不符合要求']
-        self.affair_rec.insert(_rec)
-
-    def addAlarm(self,alarm):
-        """
-        处理本人的预警事件
-        :param alarm: 预警记录
-            {}
-        :return:
-        """
-        pass
-
-    def addRisk(self,risk):
-        """
-        处理本人的风险事故
-        :param risk: 风险记录
-            {}
-        :return:
-        """
-        pass
 
 class c_org(k_object):
 
@@ -537,8 +484,70 @@ class c_legalperson(k_object):
             self.declare_quota = c_quota(id=self.get('declare_quota_id'),writeable=True)
             self.social_quota = c_quota(id=self.get('social_quota_id'),writeable=True)
 
-class System(object):
+class c_affair_post(c_record):
+    """
+    定义 事务流水线的 环节
+    """
+    def __init__(self,id=None,values=None,writeable=False,create=False):
+        _metadata = {
+            'table':'affair_post',
+            'id':id,
+            'field':['line_id','name','t_limit']
+        }
+        super(c_affair_post,self).__init__(_metadata,values=values,writeable=writeable,create=create)
 
+class c_affair_line(k_object):
+    """
+    定义 事务流水线（针对行政审批等业务）
+    """
+    def __init__(self,id=None,values=None,posts=None,writeable=False,create=False):
+        _metadata = {
+            'table':'affair_line',
+            'id':id,
+            'field':['name','sn','department','leader']
+        }
+        super(c_affair_line,self).__init__(_metadata,values=values,writeable=writeable,create=create)
+        # 环节的 K-V
+        self.post = {}
+        if create:
+            if posts is not None:
+                for _post in posts:
+                    _obj = c_affair_post(writeable=True)
+                    _obj.insert(values=[self.get_id(),_post['name'],_post['value']])
+                    self.post[_post['name']] = int(_post['value'])
+        else:
+            self.post = {}
+            _obj = c_affair_post()
+            _rec = _obj.search(where='line_id=%d' % self.get_id())
+            for _r in _rec:
+                self.post[str(_r[0])] = int(str(_r[1]))
+
+    def get(self,field=None,where=None):
+        if where is not None:
+            if field is not None:
+                self.sql = 'select %s from %s where %s' % (field,self.table,where)
+            else:
+                self.sql = 'select * from %s where %s' % (self.table,where)
+        else:
+            if field is not None:
+                self.sql = 'select %s from %s' % (field,self.table)
+            else:
+                self.sql = 'select * from %s' % (self.table)
+        return self.db_select()
+
+    def getPost(self,post):
+        return self.post[post]
+
+def scan_one_hdr(one,record=None,node=1,record_rec=None):
+    _ret = []
+    for _o in one:
+        _ret.append(str(_o))
+    return _ret
+
+class System(object):
+    """
+    系统定义【处理机】
+    """
     def __init__(self):
         self.org_name = '贵阳市人力资源和社会保障局'
         self.app_name = '数据铁笼'
@@ -557,12 +566,12 @@ class System(object):
         # 创建一个 记录类，用于管理 affair_trace 记录
         self.affair_trace = c_record({'table':'affair_trace','id':0,
                                       'field':['affair_id','sn','node','state','start_time','end_time','member',
-                                               'subject','take','comment']},
+                                               'subject','org_code','take','comment']},
                                      writeable=True)
         # 创建一个 记录类，用于管理 affair_rec 记录
         self.affair_rec = c_record({'table':'affair_rec','id':0,
                                       'field':['sn','node','start_time','end_time','member',
-                                               'subject','take','comment']},
+                                               'subject','org_code','take','comment']},
                                      writeable=True)
         self.message_rec = c_record({'table':'message_rec','id':0,
                                      'field':['fr_member_id','to_member_id','sn','subject','node','level',
@@ -582,9 +591,63 @@ class System(object):
                      'order by a.receive_time'
         self._exit = False
         super(System,self).__init__()
+        #
+        # 构建 事务处理线
+        #
+        # 事务处理线定义：
+        #   {'id','name','sn','department','leader','post':[{post_name:post_t_limit}]}
+        #
+        self.affair_line = []
+        _line = k_db_scan({'table':'affair_line','field':['id','name','sn','department','leader']},scan_one_hdr)
+        _rec = _line.scan()
+        for _r in _rec:
+            _line_rec = {
+                    'id':int(_r[0]),
+                    'name':str(_r[1]),
+                    'sn':str(_r[2]),
+                    'department':str(_r[3]),
+                    'leader':str(_r[4])
+            }
+            _post = k_db_scan({'table':'affair_post','field':['name','t_limit']},scan_one_hdr)
+            _post_rec = _post.scan(where='line_id=%s' % _r[0])
+            _post = {}
+            for _p in _post_rec:
+                _post[str(_p[0])] = int(_p[1])
+            _line_rec['post'] = _post
+            self.affair_line.append(_line_rec)
+        # 测试通过，2016.3.8
+        #_debug(5,">>> System __init__ affair_line[%s]" % str(self.affair_line))
+        # 全局计量指标
+        #
+        _rec = c_record({'table':'quota','id':0,'field':['id','pid','name','mass','trend']})
+        _r = _rec.search(where='pid=-1')
+        if len(_r)==0:
+            self.total_quota = c_quota(values=[-1,'全局指标评估',0,0],writeable=True,create=True)
+            self.load_quota = c_quota(values=[self.total_quota.get_id(),'工作量指标',0,0],writeable=True,create=True)
+            self.risk_quota = c_quota(values=[self.total_quota.get_id(),'风险指标',0,0],writeable=True,create=True)
+            self.org_quota = c_quota(values=[self.total_quota.get_id(),'机构总数',0,0],writeable=True,create=True)
+            self.legalperson_quota = c_quota(values=[self.total_quota.get_id(),'法人总数',0,0],writeable=True,create=True)
+        else:
+            _id = int(str(_r[0][0]))
+            self.total_quota = c_quota(id=_id,writeable=True)
+            self.total_quota.set('mass',98)
+            _rr = _rec.search('pid=%s' % str(_id))
+            for _rrr in _rr:
+                if str(_rrr[2]) in ['工作量指标']:
+                    self.load_quota = c_quota(id=int(str(_rrr[0])),writeable=True)
+                elif str(_rrr[2]) in ['风险指标']:
+                    self.risk_quota = c_quota(id=int(str(_rrr[0])),writeable=True)
+                elif str(_rrr[2]) in ['机构总数']:
+                    self.org_quota = c_quota(id=int(str(_rrr[0])),writeable=True)
+                elif str(_rrr[2]) in ['法人总数']:
+                    self.legalperson_quota = c_quota(id=int(str(_rrr[0])),writeable=True)
 
     def _sleep(self):
-        # 休眠 60 秒
+        """
+        循环周期：
+            休眠 60 秒
+        :return:
+        """
         time.sleep(60)
 
     def doChkAffair(self):
@@ -600,22 +663,51 @@ class System(object):
         self.affair_scan.scan(where=self.where_0,record=self.affair_trace,record_rec=self.affair_rec)
         # 扫描未完成事务
         self.affair_scan.scan(where=self.where_1,record=self.affair_trace,record_rec=self.affair_rec)
-        # 扫描 获取 人员的 趋势数据
-        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 1) #time.localtime().tm_mon)
-        self.calEff(_rec,1)
-        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 2) #time.localtime().tm_mon)
-        self.calEff(_rec,2)
-        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 11) #time.localtime().tm_mon)
-        self.calEff(_rec,11)
-        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % 12) #time.localtime().tm_mon)
-        self.calEff(_rec,12)
+
+    def syncTotal(self):
+        """
+        计算 总指标
+        :return:
+        """
+        # 扫描 人员的 工作量 和 风险 指标
+        _scan = k_db_scan({'table':'member','field':['load_quota_id','risk_quota_id']},scan_one_hdr)
+        _rec = _scan.scan()
+        for _r in _rec:
+            _load_q = c_quota(id=int(str(_r[0])))
+            _risk_q = c_quota(id=int(str(_r[1])))
+            self.load_quota.add(int(_load_q.get('mass')))
+            self.risk_quota.add(int(_risk_q.get('mass')))
+        # 扫描 机构的 工作量 和 风险 指标
+        _scan = k_db_scan({'table':'org','field':['count(*)']},scan_one_hdr)
+        _rec = _scan.scan()
+        self.org_quota.set('mass',int(_rec[0][0]))
+        # 扫描 机构的 工作量 和 风险 指标
+        _scan = k_db_scan({'table':'legal_person','field':['count(*)']},scan_one_hdr)
+        _rec = _scan.scan()
+        self.legalperson_quota.set('mass',int(_rec[0][0]))
+
+    def syncEff(self):
+        """
+        扫描 获取 人员的 趋势数据
+        :return:
+        """
+        _month = time.localtime().tm_mon
+        _rec = self.affair_rec_scan.scan(where='month(start_time)=%d' % _month) #time.localtime().tm_mon)
+        self.calEff(_rec,_month)
 
     def calEff(self,_rec,_month):
+        """
+        计算并设置 人员的 趋势数据
+        :param _rec: 人员表[]
+        :param _month: 当前月份
+        :return:
+        """
         _member_cal = {}
         for _r in _rec:
             _debug(4,">>> _r[%s]" % str(_r))
             _member = _r['member']
             _val = _r['value']
+            # 用 map/reduce 方式统计
             if _member in _member_cal:
                 _min = _member_cal[_member][0]
                 _max = _member_cal[_member][1]
@@ -629,22 +721,34 @@ class System(object):
                 _member_cal[_member] = [_r['value'],_r['value'],_r['value'],1]
 
         for _k in _member_cal.keys():
+            #
+            # 计算 人员 效率趋向
+            #
             _v = _member_cal[_k]
             _member = c_member(id=int(_k))
             _member.eff_quota.setScope(_month,'min',_v[0]*10)
             _member.eff_quota.setScope(_month,'max',_v[1]*10)
             _member.eff_quota.setScope(_month,'avg',(_v[2]*10)/_v[3])
+            #
+            # 计算 效率
+            # 需要一个计算模型
+            #
+            _member.eff_quota.set('mass',(_v[2]*10)/_v[3])
+            _member.eff_quota.set('trend',1)
 
-    def doChkAlarm(self):
+    def _get_post_limit(self,sn,post):
         """
-        判断是否需要发送预警！
-            若发现 预警：
-                1）查看 message_rec 中是否已经存在 该预警记录，sn、member和level相同
-                2）若不存在，则发送消息，修改计量 risk_quota 下 scope 的min（1级）和avg（1级以上）
-        :return:
+        获取 事务处理线 某环节的 时限
+        :param name: 事务处理线名称
+        :param post: 环节名称
+        :return: 时限
         """
-        # 扫描未完成事务
-        self.affair_scan.scan(where=self.where_1)
+        _debug(5,">>> _get_post_limit %s[%s]" % (sn,post))
+
+        for _r in self.affair_line:
+            if str(_r['sn']) in str(sn):
+                return int(str(_r['post'][str(post)]))
+        return 0
 
     def doChkRisk(self):
         """
@@ -655,26 +759,99 @@ class System(object):
         :return:
         """
         # 扫描未完成事务
-        self.affair_scan.scan(where=self.where_1)
+        _rec = self.affair_scan.scan(where=self.where_1)
+        for _r in _rec:
+            if len(_r)==5:
+                _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s]" % (
+                    _r['member'],
+                    _r['sn'],
+                    _r['node'],
+                    _r['take'],
+                    _r['subject']
+                ))
+                _v = int(str(_r['take']))
+                # 是否超出 8 天总时限
+                if _r['sn'] is not '受理'and _v>3600:
+                    _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                    self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],5,
+                                     '测试（外部）风险事故-办理事务超期！')
+                else:
+                    _limit = self._get_post_limit(_r['sn'],_r['node']) * 450
+                    # 当 _limit=0 时，表示该环节不存在 环节 时限
+                    if _limit>0:
+                        if _v > _limit:
+                            _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                            self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
+                                             '测试（内部）风险事故-办理事务超期！')
 
     def sendMessage(self,fr_member,to_member,sn,subject,node,level,info):
-        self.message_rec.insert([fr_member,to_member,sn,subject,node,level,info,0,0])
+        """
+        发送风险类事件
+        :param fr_member: 当事人
+        :param to_member: 接收人
+        :param sn: 事务标识
+        :param subject: 事务主题
+        :param node: 处理环节
+        :param level: 等级，1，2，3预警，4，5风险事件
+        :param info: 消息内容
+        :return:
+        """
+        _scan = k_db_scan({'table':'message_rec','field':['count(*)']},scan_one_hdr)
+        _rec = _scan.scan(where='fr_member_id=%s and to_member_id=%s and sn="%s" and node="%s" and level=%s' %
+                         (str(fr_member),str(to_member),str(sn),str(node),str(level)))
+        if int(str(_rec[0][0]))==0:
+            self.message_rec.insert([fr_member,to_member,sn,subject,node,level,info,0,0])
+            _member = c_member(id=int(fr_member))
+            if level>3:
+                _member.risk_quota.add(1)
+            _month = time.localtime().tm_mon
+            if level>3:
+                _member.risk_quota.addScope(_month,'max',1)
+            elif level>1:
+                _member.risk_quota.addScope(_month,'avg',1)
+            else:
+                _member.risk_quota.addScope(_month,'min',1)
 
     def run(self):
         """
         处理机：一个运行的进程实体
         :return:
         """
-        self.sendMessage("-","-","TEST001",'subject','Node',0,'Test 测试')
+        _5min = 5
+        _hour = 60
+        _day = 1440
+
         while not self._exit:
+
             self.doChkAffair()
-            #self.doChkAlarm()
-            #self.doChkRisk()
-            self._exit = True
+
+            # 时间间隔 处理
+            _5min -= 1
+            if 0>=_5min:
+                _5min = 5
+                self.doChkRisk()
+                self.syncTotal()
+            _hour -= 1
+            if 0>=_hour:
+                _hour = 60
+                self.syncEff()
+            _day -= 1
+            if 0>= _day:
+                _day = 1440
+                sync_member()
+
+            _debug(5,"System run _sleep()")
             self._sleep()
-            _debug(0,"System run _sleep wakeup!")
 
 def scan_scope_hdr(one,record=None,node=1,record_rec=None):
+    """
+    处理针对 人员scope 的扫描，类似与 map 操作
+    :param one: 记录数据
+    :param record:
+    :param node:
+    :param record_rec:
+    :return:
+    """
     _debug(3,">>> scan_scope_hdr [%s]" % str(one))
     _member = str(one[0])
     _val = int(str(one[1]))
@@ -700,18 +877,19 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     #      15              16                  17
     #    'legal_person','legal_person_tel','legal_person_cid'
     #         ]
+    _ret = {}
 
     # 判断是否是新记录
     _new = True
     if record is not None:
-        _where = 'affair_id="%s"' % str(one[0])
+        _where = 'affair_id=%s' % str(one[0])
         _rec = record.search(_where)
         if len(_rec)>0:
             _new = False
 
     # 不是新记录，且已办理完成的，不需要考虑风险
     if (not _new) and (int(str(one[3]))>0):
-        return
+        return _ret
 
     # 当前月份
     _month = time.localtime().tm_mon
@@ -744,7 +922,9 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _node = '现场'
 
     if _node is '受理' and _new:
-
+        #
+        # 有新的 事务 产生！
+        #
         # 数据清洗
         _org_code = str(one[9])
         if _org_code in ['None','NONE','NULL','Null',""]:
@@ -771,7 +951,14 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
 
         _debug(3,">>> _person.id = %d" % _person.get_id())
 
+        #
+        # 计算 法人 申报指标
+        #
+        # 总量+1
+        #
         _person.declare_quota.add(1)
+        #
+        # 当月总量+1
         _person.declare_quota.addAllScope(_month,1)
 
         _org = c_org()
@@ -782,9 +969,14 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
             _org = c_org(id=int(_id))
         else:
             _org = c_org(values=[_org_code,str(one[10]),str(one[11]),
-                                 '注册资金：%s，工商注册码：%s，工商注册地址：%s' % (str(one[12]),str(one[13]),str(one[14])),
+                                 '注册资金：%s^工商注册码：%s^工商注册地址：%s' % (str(one[12]),str(one[13]),str(one[14])),
                                  _person.get_id()],writeable=True,create=True)
+        #
+        # 计算 机构 申报指标
+        # 申报总量+1
         _org.declare_quota.add(1)
+        #
+        # 当月申报总量+1
         _org.declare_quota.addAllScope(_month,1)
 
     # 针对一个已完成的 环节node，应该同时具有 接收时间 和 完成时间
@@ -803,23 +995,12 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
             _cur = utils.mysql_conn()
             _take = utils.cal_workdays(_cur,_start_time,_now)
             _cur.close()
-            """
-            判断是否超时
-            _lvl = utils.beAlarm(_take,_node)
-            if _lvl>0:
-                # 有风险！
-                # fr_member_id decimal(38,0) NOT NULL COMMENT '发起人ID',
-                # to_member_id decimal(38,0) NOT NULL COMMENT '接收人ID',
-                # sn VARCHAR (80) NOT NULL COMMENT '业务标识，如流水号',
-                # node VARCHAR (80) NOT NULL COMMENT '环节',
-                # level INT NOT NULL COMMENT '等级，预警：1,2,3；风险：4,5；信息：0',
-                # info VARCHAR (255) NOT NULL COMMENT '说明',
-                # type INT NOT NULL COMMENT '0：发起；1：回复；2：处治',
-                # readed INT NOT NULL COMMENT '0：未读；1：已读'
-                #
-                _message = {'fr_member':str(one[6]),'sn':str(one[1]),'node':_node,'level':_lvl}
-                utils.send_message(_message)
-            """
+
+            _ret['member'] = str(one[6])
+            _ret['sn'] = str(one[1])
+            _ret['node'] = str(_node)
+            _ret['take'] = _take
+            _ret['subject'] = str(one[7])
 
     # 人员工作量计量
     _member = c_member(id=int(str(one[6])))
@@ -833,27 +1014,117 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
 
     # 若不是新纪录 或 不需要记录，则可退出
     if not _new or record is None:
-        return
+        return _ret
 
     # 记录该事务过程到 affair_trace 中
     record.insert([str(one[0]),str(one[1]),_node,int(str(one[3])),
                          _start_time,_end_time,str(one[6]),
-                         str(one[7]),_take,"-"])
+                         str(one[7]),str(one[9]),_take,"-"])
                          #str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"])
 
     if record_rec is None:
-        return
+        return _ret
 
     # 记录该事务过程到 affair_rec 中
     # 'field':['sn','node','start_time','end_time','member','subject','take','comment']
     record_rec.insert(
         [str(one[1]),_node,_start_time,_end_time,str(one[6]),
-         str(one[7]),_take,"-"]
+         str(one[7]),str(one[9]),_take,"-"]
          #str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"]
     )
-    return {}
+    return _ret
 
-def build_member():
+def build_affair_line():
+    """
+    构建 系统的 事务处理线 数据模型
+
+        注：只在系统初始化时运行 ！
+
+    :return:
+    """
+    _rec = ['人力资源服务许可','RLZYFWXK','人力资源市场处','路林']
+    _posts = [
+        {'name':'受理','value':1},
+        {'name':'初审','value':2},
+        {'name':'复审','value':2},
+        {'name':'审批','value':2},
+        {'name':'制证','value':1},
+        {'name':'办结','value':0},
+    ]
+    _obj = c_affair_line(values=_rec,posts=_posts,writeable=True,create=True)
+
+    _rec = ['劳务派遣许可','LWPQXK','劳动关系处','卢祝新']
+    _posts = [
+        {'name':'受理','value':1},
+        {'name':'初审','value':2},
+        {'name':'复审','value':1},
+        {'name':'现场','value':2},
+        {'name':'审批','value':1},
+        {'name':'制证','value':1},
+        {'name':'办结','value':0},
+    ]
+    _obj = c_affair_line(values=_rec,posts=_posts,writeable=True,create=True)
+
+    _rec = ['台湾、香港、澳门人员就业证办理就业','JYZSP','就业促进处','潘红霞']
+    _posts = [
+        {'name':'受理','value':1},
+        {'name':'初审','value':2},
+        {'name':'复审','value':1},
+        {'name':'现场','value':2},
+        {'name':'审批','value':1},
+        {'name':'制证','value':1},
+        {'name':'办结','value':0},
+    ]
+    _obj = c_affair_line(values=_rec,posts=_posts,writeable=True,create=True)
+
+    _rec = ['特殊工时工作制','TSGSGZZ','劳动关系处','卢祝新']
+    _posts = [
+        {'name':'受理','value':1},
+        {'name':'初审','value':2},
+        {'name':'复审','value':2},
+        {'name':'审批','value':2},
+        {'name':'制证','value':1},
+        {'name':'办结','value':0},
+    ]
+    _obj = c_affair_line(values=_rec,posts=_posts,writeable=True,create=True)
+
+    _rec = ['贵阳市民办职业培训学校','MBZYPXXX','职业能力建设处','潘红霞']
+    _posts = [
+        {'name':'受理','value':1},
+        {'name':'初审','value':2},
+        {'name':'复审','value':1},
+        {'name':'现场','value':2},
+        {'name':'审批','value':1},
+        {'name':'制证','value':1},
+        {'name':'办结','value':0},
+    ]
+    _obj = c_affair_line(values=_rec,posts=_posts,writeable=True,create=True)
+
+    _rec = ['技工学校筹设行政许可','JGXXCS','职业能力建设处','潘红霞']
+    _posts = [
+        {'name':'受理','value':1},
+        {'name':'初审','value':2},
+        {'name':'复审','value':1},
+        {'name':'现场','value':2},
+        {'name':'审批','value':1},
+        {'name':'制证','value':1},
+        {'name':'办结','value':0},
+    ]
+    _obj = c_affair_line(values=_rec,posts=_posts,writeable=True,create=True)
+
+    _rec = ['技工学校设立行政许可','JGXXSL','职业能力建设处','潘红霞']
+    _posts = [
+        {'name':'受理','value':1},
+        {'name':'初审','value':2},
+        {'name':'复审','value':1},
+        {'name':'现场','value':2},
+        {'name':'审批','value':1},
+        {'name':'制证','value':1},
+        {'name':'办结','value':0},
+    ]
+    _obj = c_affair_line(values=_rec,posts=_posts,writeable=True,create=True)
+
+def sync_member():
     """
     从 org_member 表同步 member 个人信息
     注：缺失信息包括个人联系电话、身份证
@@ -864,19 +1135,27 @@ def build_member():
     if cnt>0:
         for _i in range(cnt):
             one = cur.fetchone()
+            #
+            # 判断是否是 新增加的 人员
+            #
             curr = utils.mysql_conn()
             cnt = curr.execute('select id from member where id=%s' % str(one[0]))
             curr.close()
             if cnt==0:
+                # 新增 人员！
                 c_member(id=int(str(one[0])),values=[str(one[0]),str(one[1]),'-','-'],writeable=True,create=True,hasid=True)
                 _debug(4,">>> build_member %s" % str(one[1]))
     cur.close()
 
 if __name__ == '__main__':
 
-    # 初始化 member 对象数据
-    # 2016-3-6 完成
-    build_member()
+    # 同步 member 对象数据
+    sync_member()
+
+    # 创建 事务办理业务线
+    # ！！！ 创建类 ！！！
+    # 2016.3.8 完成
+    #build_affair_line()
 
     system = System()
     system.run()
