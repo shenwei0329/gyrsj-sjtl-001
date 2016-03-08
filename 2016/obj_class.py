@@ -658,11 +658,30 @@ class System(object):
         :return:
         """
         # 扫描受理环节事务
-        self.affair_scan.scan(where=self.where_2,record=self.affair_trace,node=0,record_rec=self.affair_rec)
+        _rec = self.affair_scan.scan(where=self.where_2,record=self.affair_trace,node=0,record_rec=self.affair_rec)
         # 扫描已完成事务
-        self.affair_scan.scan(where=self.where_0,record=self.affair_trace,record_rec=self.affair_rec)
+        _rec = self.affair_scan.scan(where=self.where_0,record=self.affair_trace,record_rec=self.affair_rec)
         # 扫描未完成事务
-        self.affair_scan.scan(where=self.where_1,record=self.affair_trace,record_rec=self.affair_rec)
+        _rec = self.affair_scan.scan(where=self.where_1,record=self.affair_trace,record_rec=self.affair_rec)
+        for _r in _rec:
+            if len(_r)==5:
+                _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s]" % (
+                    _r['member'],
+                    _r['sn'],
+                    _r['node'],
+                    _r['take'],
+                    _r['subject']
+                ))
+                _v = int(str(_r['take']))
+                # 是否办理过快！
+                _limit = self._get_post_limit(_r['sn'],_r['node']) * 15
+                # 当 _limit=0 时，表示该环节不存在 环节 时限
+                if _limit>0:
+                    if _v < _limit:
+                        _debug(5,">>> !!! RISK too fast! %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                        self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
+                                         '测试（内部）风险事故-办理事务过快！')
+
 
     def syncTotal(self):
         """
@@ -747,7 +766,8 @@ class System(object):
 
         for _r in self.affair_line:
             if str(_r['sn']) in str(sn):
-                return int(str(_r['post'][str(post)]))
+                if post in _r['post']:
+                    return int(str(_r['post'][str(post)]))
         return 0
 
     def doChkRisk(self):
@@ -986,6 +1006,13 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _cur = utils.mysql_conn()
         _take = utils.cal_workdays(_cur,_start_time,_end_time)
         _cur.close()
+        if _new:
+            # 判断是否 办理过程 过快
+            _ret['member'] = str(one[6])
+            _ret['sn'] = str(one[1])
+            _ret['node'] = str(_node)
+            _ret['take'] = _take
+            _ret['subject'] = str(one[7])
     else:
         # 若只有一个时间，则表示该事务可能还停留在此 环节node 上
         # 当用于风险扫描时，应该看看是否有超时限的可能，现在距离 接收时间 的时间间隔？
