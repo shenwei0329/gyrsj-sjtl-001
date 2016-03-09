@@ -15,7 +15,7 @@ __author__ = 'shenwei'
 import utils
 import datetime,time
 
-_debug_level = 4
+_debug_level = 10
 
 def _debug(lvl,info):
     if lvl >= _debug_level:
@@ -93,44 +93,55 @@ class k_db(object):
 
     def db_update(self,field,data):
         if self.writeable:
-            _cur = utils.mysql_conn()
-            self.sql = 'update %s set %s=%s where id=%s' % \
-                       (self.table,
-                        field,'%d' % data if type(data) is int or type(data) is long else '"%s"' % data,
-                        str(self.id))
-
-            _debug(5,"k_object db_update [%s]" % self.sql)
-
-            _cur.execute(self.sql)
-            _cur.close()
-
             _debug(0,"k_object db_update [%s]" % self.sql)
+            try:
+                _cur = utils.mysql_conn()
+                self.sql = 'update %s set %s=%s where id=%s' % \
+                           (self.table,
+                            field,'%d' % data if type(data) is int or type(data) is long else '"%s"' % data,
+                            str(self.id))
+
+                _debug(5,"k_object db_update [%s]" % self.sql)
+
+                _cur.execute(self.sql)
+                _cur.close()
+            except Exception as e:
+                _debug(2,"k_object db_update error[%s]" % (e))
         else:
             _debug(1,"k_object db_update [%s] be not writeable" % self.sql)
 
     def db_select(self):
-        _cur = utils.mysql_conn()
-        _cnt = _cur.execute(self.sql)
-        _entry = []
-        if _cnt>0:
-            for _ in range(_cnt):
-                one = _cur.fetchone()
-                _entry.append(one)
-        _cur.close()
         _debug(3,"k_object db_select [%s]" % self.sql)
-        return _entry
+        _entry = []
+        try:
+            _cur = utils.mysql_conn()
+            _cnt = _cur.execute(self.sql)
+            if _cnt>0:
+                for _ in range(_cnt):
+                    one = _cur.fetchone()
+                    _entry.append(one)
+            _cur.close()
+        except Exception as e:
+            _debug(2,"k_object db_select error[%s]" % (e))
+        finally:
+            return _entry
 
     def db_insert(self,hasid=False):
         _id = None
         if self.writeable:
-            _cur = utils.mysql_conn()
-            _cur.execute(self.sql)
-            if not hasid:
-                _id = int(_cur.lastrowid)
-            else:
-                _id = self.id
-            _cur.close()
             _debug(1,"k_object db_insert [%s]" % self.sql)
+            try:
+                _cur = utils.mysql_conn()
+                _cur.execute(self.sql)
+                if not hasid:
+                    _id = int(_cur.lastrowid)
+                else:
+                    _id = self.id
+                _cur.close()
+            except Exception as e:
+                _debug(2,"k_object db_insert error[%s]" % (e))
+            finally:
+                return _id
         return _id
 
 class k_db_scan(object):
@@ -161,25 +172,28 @@ class k_db_scan(object):
         super(k_db_scan,self).__init__()
 
     def scan(self,where=None,record=None,node=1,record_rec=None):
-        _cur = utils.mysql_conn()
-        if where is not None:
-            _sql = self.sql + " where " + where
-        else:
-            _sql = self.sql
-
         _ret = []
-        _cnt = _cur.execute(_sql)
-        if _cnt>0:
-            for _ in range(_cnt):
-                one = _cur.fetchone()
-                if record is not None:
-                    _v = self.scan_hdr(one,record=record,node=node,record_rec=record_rec)
-                else:
-                    _v = self.scan_hdr(one,node=node)
-                _ret.append(_v)
-        _cur.close()
-        _debug(0,"k_db_scan [%s]" % _sql)
-        return _ret
+        try:
+            _cur = utils.mysql_conn()
+            if where is not None:
+                _sql = self.sql + " where " + where
+            else:
+                _sql = self.sql
+
+            _cnt = _cur.execute(_sql)
+            if _cnt>0:
+                for _ in range(_cnt):
+                    one = _cur.fetchone()
+                    if record is not None:
+                        _v = self.scan_hdr(one,record=record,node=node,record_rec=record_rec)
+                    else:
+                        _v = self.scan_hdr(one,node=node)
+                    _ret.append(_v)
+            _cur.close()
+        except Exception as e:
+            _debug(2,"k_db_scan scan error[%s]" % (e))
+        finally:
+            return _ret
 
 class k_object(k_db):
     """
@@ -412,7 +426,7 @@ class c_member(k_object):
                 ]
             }
         if create:
-            self.credit_quota = c_quota(values=[0,'个人信用评估',0,0],writeable=True,create=True)
+            self.credit_quota = c_quota(values=[0,'个人信用评估',80,0],writeable=True,create=True)
             self.load_quota = c_quota(values=[self.credit_quota.get_id(),'工作量指标',0,0],writeable=True,create=True)
             self.eff_quota = c_quota(values=[self.credit_quota.get_id(),'效率指标',0,0],writeable=True,create=True)
             self.risk_quota = c_quota(values=[self.credit_quota.get_id(),'风险指标',0,0],writeable=True,create=True)
@@ -439,7 +453,10 @@ class c_org(k_object):
                 ]
             }
         if create:
-            self.credit_quota = c_quota(values=[0,'机构信用评估',0,0],writeable=True,create=True)
+            self.credit_quota = c_quota(values=[0,'机构信用评估',80,0],writeable=True,create=True)
+            #
+            # 申报指标 的趋势记录中 max=申报总数，avg=未批准总数，min=待定
+            #
             self.declare_quota = c_quota(values=[self.credit_quota.get_id(),'申办指标',0,0],writeable=True,create=True)
             self.annual_quota = c_quota(values=[self.credit_quota.get_id(),'年审指标',0,0],writeable=True,create=True)
             self.case_quota = c_quota(values=[self.credit_quota.get_id(),'案件指标',0,0],writeable=True,create=True)
@@ -468,7 +485,7 @@ class c_legalperson(k_object):
                 ]
             }
         if create:
-            self.credit_quota = c_quota(values=[0,'法人信用评估',0,0],writeable=True,create=True)
+            self.credit_quota = c_quota(values=[0,'法人信用评估',80,0],writeable=True,create=True)
             self.declare_quota = c_quota(values=[self.credit_quota.get_id(),'申办指标',0,0],writeable=True,create=True)
             self.social_quota = c_quota(values=[self.credit_quota.get_id(),'社保指标',0,0],writeable=True,create=True)
             values.append(self.credit_quota.get_id())
@@ -558,7 +575,8 @@ class System(object):
                                'a.receive_time','a.complete_time','a.member_id','a.subject',
                                'b.id',
                                'b.org_code','b.org_name','b.org_addr','b.org_capital','b.org_reg_number','b.org_reg_addr',
-                               'legal_person','legal_person_tel','legal_person_cid'
+                               'b.legal_person','b.legal_person_tel','b.legal_person_cid',
+                               'b.create_date'
                                ]},my_scan_hdr)
         # 扫描 affair_rec，以统计 某月份的 min,avg,max
         self.affair_rec_scan = k_db_scan({'table':'affair_rec',
@@ -641,6 +659,46 @@ class System(object):
                     self.org_quota = c_quota(id=int(str(_rrr[0])),writeable=True)
                 elif str(_rrr[2]) in ['法人总数']:
                     self.legalperson_quota = c_quota(id=int(str(_rrr[0])),writeable=True)
+        #
+        # 定义风险责任规则
+        # 2016.3.9 - 针对 行政审批 业务
+        self.RiskRule = {
+                            'RLZY':{
+                                2:['4876746049514849965'],
+                                3:['4876746049514849965','-913621547074565894'],
+                                4:['4876746049514849965','-913621547074565894','-7221668022947721994','7523849018428050552','1329013287631799142'],
+                                5:['4876746049514849965','-913621547074565894','-7221668022947721994','7523849018428050552','1329013287631799142']},
+                            'LWPQ':{
+                                2:['1620419065382521819'],
+                                3:['1620419065382521819','-7174564612394366732'],
+                                4:['1620419065382521819','-7174564612394366732','-7221668022947721994','7523849018428050552','1329013287631799142'],
+                                5:['1620419065382521819','-7174564612394366732','-7221668022947721994','7523849018428050552','1329013287631799142']},
+                            'TSGS':{
+                                2:['1620419065382521819'],
+                                3:['1620419065382521819','-7174564612394366732'],
+                                4:['1620419065382521819','-7174564612394366732','-7221668022947721994','7523849018428050552','1329013287631799142'],
+                                5:['1620419065382521819','-7174564612394366732','-7221668022947721994','7523849018428050552','1329013287631799142']},
+                            'JYZS':{
+                                2:['-7561711767366450865'],
+                                3:['-7561711767366450865','3449282702262554049'],
+                                4:['-7561711767366450865','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142'],
+                                5:['-7561711767366450865','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142']},
+                            'MBZY':{
+                                2:['309589157653594281'],
+                                3:['309589157653594281','3449282702262554049'],
+                                4:['309589157653594281','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142'],
+                                5:['309589157653594281','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142']},
+                            'JGXX':{
+                                2:['309589157653594281'],
+                                3:['309589157653594281','3449282702262554049'],
+                                4:['309589157653594281','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142'],
+                                5:['309589157653594281','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142']}
+        }
+
+    def _toMember(self,sn,level):
+        if sn[0:4] in self.RiskRule:
+            if level in self.RiskRule[sn[0:4]]:
+                return self.RiskRule[sn[0:4]][level]
 
     def _sleep(self):
         """
@@ -648,7 +706,106 @@ class System(object):
             休眠 60 秒
         :return:
         """
-        time.sleep(60)
+        time.sleep(600)
+
+    def _RiskHdr(self,evt_rec,type=0):
+        """
+        风险处理程序
+        :param evt_rec: 事务记录
+        :param type: =0 已完成事务，=1 未完成事件
+        :return:
+        """
+        if type==0:
+            # 已完成
+            for _r in evt_rec:
+                if _r.has_key('member') and _r.has_key('sn') and _r.has_key('node') and \
+                        _r.has_key('take') and _r.has_key('subject'):
+                    _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s]" % (
+                        _r['member'],
+                        _r['sn'],
+                        _r['node'],
+                        _r['take'],
+                        _r['subject']
+                    ))
+                    _v = int(str(_r['take']))
+                    # 是否办理过快！
+                    _limit = self._get_post_limit(_r['sn'],_r['node']) * 15
+                    # 当 _limit=0 时，表示该环节不存在 环节 时限
+                    if _limit>0:
+                        if _v < _limit:
+                            _debug(5,">>> !!! RISK too fast! %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                            self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
+                                             '风险事故（内部）：岗位在办理该事务时过快，无法保证审核质量。')
+                # 处理审批未通过的事务
+                _month = time.localtime().tm_mon
+                if _r.has_key('org_code'):
+                    _scan = k_db_scan({'table':'org','field':['id']},scan_one_hdr)
+                    _rr = _scan.scan(where='org_code=%s' % _r['org_code'])
+                    if len(_rr)>0:
+                        _org = c_org(id=int(str(_rr[0][0])))
+                        _org.declare_quota.addScope(_month,'avg',1)
+
+                if _r.has_key('legal_person'):
+                    _scan = k_db_scan({'table':'legal_person','field':['id']},scan_one_hdr)
+                    _rr = _scan.scan(where='name=%s' % _r['legal_person'])
+                    if len(_rr)>0:
+                        _person = c_legalperson(id=int(str(_rr[0][0])))
+                        _person.declare_quota.addScope(_month,'avg',1)
+        else:
+            # 未完成
+            for _r in evt_rec:
+                if len(_r)==6:
+                    _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s,%s]" % (
+                        _r['member'],
+                        _r['sn'],
+                        _r['node'],
+                        _r['take'],
+                        _r['subject'],
+                        _r['create_date']
+                    ))
+                    # 计算总共 已用时
+                    _v = utils.cal_workdays(_r['create_date'],datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    # 是否超出 8 天总时限
+                    if _v>3600:
+                        _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                        self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],5,
+                                         '风险事故：办理事务的总时限超期！')
+                    elif _v>(3600-255):
+                        _debug(5,">>> !!! ALARM 3 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                        self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],3,
+                                         '风险预测（高）预警：办理事务即将超期，请立刻办理！')
+                    elif _v>(3600-450):
+                        _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                        self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],2,
+                                         '风险预测（中）预警：办理事务即将超期，请尽快办理！')
+                    elif _v>(3600-900):
+                        _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                        self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],1,
+                                         '风险预测（低）预警：办理事务即将超期，请办理！')
+
+                    _v = int(str(_r['take']))
+                    _limit = self._get_post_limit(_r['sn'],_r['node']) * 450
+                    _l1_limit = _limit/2
+                    _l2_limit = _l1_limit + _l1_limit/3
+                    _l3_limit = _l2_limit + _l1_limit/3
+                    # 当 _limit=0 时，表示该环节不存在 环节 时限
+                    if _limit>0:
+                        if _v > _limit:
+                            _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                            self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
+                                            '风险事故（内部）：办理事务的岗位时限超期！')
+                        elif _v > _l3_limit:
+                            _debug(5,">>> !!! ALARM 3 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                            self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],3,
+                                            '风险预测（高）预警（岗位）：办理事务即将超期！，请立刻办理！')
+                        elif _v > _l2_limit:
+                            _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                            self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],2,
+                                            '风险预测（中）预警（岗位）：办理事务即将超期！，请尽快办理')
+                        elif _v > _l1_limit:
+                            _debug(5,">>> !!! ALARM 1 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
+                            self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],1,
+                                            '风险预测（低）预警(岗位）：办理事务超期！，请办理')
 
     def doChkAffair(self):
         """
@@ -661,27 +818,10 @@ class System(object):
         _rec = self.affair_scan.scan(where=self.where_2,record=self.affair_trace,node=0,record_rec=self.affair_rec)
         # 扫描已完成事务
         _rec = self.affair_scan.scan(where=self.where_0,record=self.affair_trace,record_rec=self.affair_rec)
+        self._RiskHdr(_rec)
         # 扫描未完成事务
         _rec = self.affair_scan.scan(where=self.where_1,record=self.affair_trace,record_rec=self.affair_rec)
-        for _r in _rec:
-            if len(_r)==5:
-                _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s]" % (
-                    _r['member'],
-                    _r['sn'],
-                    _r['node'],
-                    _r['take'],
-                    _r['subject']
-                ))
-                _v = int(str(_r['take']))
-                # 是否办理过快！
-                _limit = self._get_post_limit(_r['sn'],_r['node']) * 15
-                # 当 _limit=0 时，表示该环节不存在 环节 时限
-                if _limit>0:
-                    if _v < _limit:
-                        _debug(5,">>> !!! RISK too fast! %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
-                        self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
-                                         '测试（内部）风险事故-办理事务过快！')
-
+        self._RiskHdr(_rec,type=1)
 
     def syncTotal(self):
         """
@@ -770,40 +910,6 @@ class System(object):
                     return int(str(_r['post'][str(post)]))
         return 0
 
-    def doChkRisk(self):
-        """
-        判断是否需要发送风险事件！
-            若发现 风险：
-                1）查看 message_rec 中是否已经存在 该预警记录，sn、member和level相同
-                2）若不存在，则发送消息，修改计量 risk_quota 下 scope 的max
-        :return:
-        """
-        # 扫描未完成事务
-        _rec = self.affair_scan.scan(where=self.where_1)
-        for _r in _rec:
-            if len(_r)==5:
-                _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s]" % (
-                    _r['member'],
-                    _r['sn'],
-                    _r['node'],
-                    _r['take'],
-                    _r['subject']
-                ))
-                _v = int(str(_r['take']))
-                # 是否超出 8 天总时限
-                if _r['sn'] is not '受理'and _v>3600:
-                    _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
-                    self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],5,
-                                     '测试（外部）风险事故-办理事务超期！')
-                else:
-                    _limit = self._get_post_limit(_r['sn'],_r['node']) * 450
-                    # 当 _limit=0 时，表示该环节不存在 环节 时限
-                    if _limit>0:
-                        if _v > _limit:
-                            _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
-                            self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
-                                             '测试（内部）风险事故-办理事务超期！')
-
     def sendMessage(self,fr_member,to_member,sn,subject,node,level,info):
         """
         发送风险类事件
@@ -819,8 +925,19 @@ class System(object):
         _scan = k_db_scan({'table':'message_rec','field':['count(*)']},scan_one_hdr)
         _rec = _scan.scan(where='fr_member_id=%s and to_member_id=%s and sn="%s" and node="%s" and level=%s' %
                          (str(fr_member),str(to_member),str(sn),str(node),str(level)))
+
         if int(str(_rec[0][0]))==0:
             self.message_rec.insert([fr_member,to_member,sn,subject,node,level,info,0,0])
+            if level>1:
+                # 把信息 按照风险责任规则定义 分发给相关人员
+                _to_members = self._toMember(sn,level)
+                for _m in _to_members:
+                    _scan = k_db_scan({'table':'message_rec','field':['count(*)']},scan_one_hdr)
+                    _rec = _scan.scan(where='fr_member_id=%s and to_member_id=%s and sn="%s" and node="%s" and level=%s' %
+                                     (str(fr_member),_m,str(sn),str(node),str(level)))
+                    if int(str(_rec[0][0]))==0:
+                        self.message_rec.insert([fr_member,_m,sn,subject,node,level,info,0,0])
+
             _member = c_member(id=int(fr_member))
             if level>3:
                 _member.risk_quota.add(1)
@@ -849,7 +966,6 @@ class System(object):
             _5min -= 1
             if 0>=_5min:
                 _5min = 5
-                self.doChkRisk()
                 self.syncTotal()
             _hour -= 1
             if 0>=_hour:
@@ -894,8 +1010,8 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     #    'summary_id'
     #      9               10          11             12              13                14
     #    'b.org_code','b.org_name','b.org_addr','b.org_capital','b.org_reg_number','b.org_reg_addr',
-    #      15              16                  17
-    #    'legal_person','legal_person_tel','legal_person_cid'
+    #      15              16                  17                  18
+    #    'legal_person','legal_person_tel','legal_person_cid','b.create_date
     #         ]
     _ret = {}
 
@@ -911,8 +1027,18 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     if (not _new) and (int(str(one[3]))>0):
         return _ret
 
-    # 当前月份
+    # 事务办理结束的月份
+    # 01234567
+    # xxxx-mm-dd hh:mm:ss
+    #
     _month = time.localtime().tm_mon
+    _str = str(one[5])
+    if len(_str)>7 and '-' in _str and ':' in _str:
+        _m_str = str(one[5])[5:7]
+        _debug(10,'>>> _m_str = %s:%s' % (str(one[5]),_m_str))
+        if _m_str.isdigit():
+            _month = int(_m_str)
+    _debug(10,'>>> _month = %d' % _month)
 
     _start_time = str(one[4])
     _end_time = str(one[5])
@@ -941,17 +1067,15 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     if _node in ['现场审查']:
         _node = '现场'
 
+    # 数据清洗
+    _org_code = str(one[9])
+    if _org_code in ['None','NONE','NULL','Null',""]:
+        _org_code = "测试-机构代码"
+    _person_name = str(one[15])
+    if _person_name in ['None','NONE','NULL','Null',""]:
+        _person_name = "测试-法人"
+
     if _node is '受理' and _new:
-        #
-        # 有新的 事务 产生！
-        #
-        # 数据清洗
-        _org_code = str(one[9])
-        if _org_code in ['None','NONE','NULL','Null',""]:
-            _org_code = "测试-机构代码"
-        _person_name = str(one[15])
-        if _person_name in ['None','NONE','NULL','Null',""]:
-            _person_name = "测试-法人"
 
         _debug(3,">>> _person_name = %s" % _person_name)
 
@@ -979,7 +1103,7 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _person.declare_quota.add(1)
         #
         # 当月总量+1
-        _person.declare_quota.addAllScope(_month,1)
+        _person.declare_quota.addScope(_month,'max',1)
 
         _org = c_org()
         _org.sql = 'select id from %s where org_code="%s"' % (_org.table,_org_code)
@@ -997,7 +1121,7 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _org.declare_quota.add(1)
         #
         # 当月申报总量+1
-        _org.declare_quota.addAllScope(_month,1)
+        _org.declare_quota.addScope(_month,'max',1)
 
     # 针对一个已完成的 环节node，应该同时具有 接收时间 和 完成时间
     _take = 0
@@ -1007,12 +1131,31 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _take = utils.cal_workdays(_cur,_start_time,_end_time)
         _cur.close()
         if _new:
+            # 是 审批 完成？
+            if '审批' in _node:
+                try:
+                    _oracle_conn = utils.oracle_conn()
+                    _oracle = _oracle_conn.cursor()
+                    _mysql = utils.mysql_conn()
+                    _ctp_state = utils.get_summary_ctp_state(_oracle,_mysql,str(one[8]))
+                    if _ctp_state is not None:
+                        if "未通过" in _ctp_state:
+                            _ret['org_code'] = _org_code
+                            _ret['legal_person'] = _person_name
+                            _debug(5,">>> my_scan_hdr ctp_state=未通过!")
+                    _mysql.close()
+                    _oracle.close()
+                    _oracle_conn.close()
+                except Exception as e:
+                    _debug(2,"my_scan_hdr oracle hdr err[%s]" % e)
+
             # 判断是否 办理过程 过快
             _ret['member'] = str(one[6])
             _ret['sn'] = str(one[1])
             _ret['node'] = str(_node)
             _ret['take'] = _take
             _ret['subject'] = str(one[7])
+            _ret['create_date'] = str(one[18])
     else:
         # 若只有一个时间，则表示该事务可能还停留在此 环节node 上
         # 当用于风险扫描时，应该看看是否有超时限的可能，现在距离 接收时间 的时间间隔？
@@ -1028,23 +1171,40 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
             _ret['node'] = str(_node)
             _ret['take'] = _take
             _ret['subject'] = str(one[7])
+            _ret['create_date'] = str(one[18])
 
-    # 人员工作量计量
-    _member = c_member(id=int(str(one[6])))
+    # 判断(自动发起)的"受理"环节，此环节OA会出现两个相同的记录
+    #
+    _sn = str(one[1])
+    # 对sn的数据清洗
+    #
+    if _sn[0:4] not in ['RLZY','LWPQ','TSGS','JYZS','MBZY','JGXX']:
+        # 对无效的流水号，统一赋值为"-1"
+        _sn = '-1'
 
-    _debug(0,">>> _member.id = %s" % _member.get_id())
+    if _node in ['受理'] and '自动' in str(one[7]) and '补正' in str(one[7]):
+        _rec = record.search(where='sn="%s" and node="受理" and subject="%s" and end_time="%s"' %
+                                   (_sn,str(one[7]),_end_time))
+        if len(_rec)>0:
+            _sn += '*'
 
-    _member.load_quota.add(1)
-    _member.eff_quota.setScope(_month,'min',1)
-    _member.eff_quota.setScope(_month,'avg',1)
-    _member.eff_quota.setScope(_month,'max',1)
+    if (_sn is not '-1') and ('*' not in _sn):
+        # 人员工作量计量
+        _member = c_member(id=int(str(one[6])))
+
+        _debug(0,">>> _member.id = %s" % _member.get_id())
+
+        _member.load_quota.add(1)
+        _member.eff_quota.setScope(_month,'min',1)
+        _member.eff_quota.setScope(_month,'avg',1)
+        _member.eff_quota.setScope(_month,'max',1)
 
     # 若不是新纪录 或 不需要记录，则可退出
     if not _new or record is None:
         return _ret
 
     # 记录该事务过程到 affair_trace 中
-    record.insert([str(one[0]),str(one[1]),_node,int(str(one[3])),
+    record.insert([str(one[0]),_sn,_node,int(str(one[3])),
                          _start_time,_end_time,str(one[6]),
                          str(one[7]),str(one[9]),_take,"-"])
                          #str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"])
@@ -1055,7 +1215,7 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     # 记录该事务过程到 affair_rec 中
     # 'field':['sn','node','start_time','end_time','member','subject','take','comment']
     record_rec.insert(
-        [str(one[1]),_node,_start_time,_end_time,str(one[6]),
+        [_sn,_node,_start_time,_end_time,str(one[6]),
          str(one[7]),str(one[9]),_take,"-"]
          #str(one[7]).replace('(自动发起)','').replace('（补正）',''),_take,"-"]
     )
