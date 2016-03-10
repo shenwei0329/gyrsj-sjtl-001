@@ -695,10 +695,17 @@ class System(object):
                                 5:['309589157653594281','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142']}
         }
 
-    def _toMember(self,sn,level):
+    def _toMember(self,member,sn,level):
         if sn[0:4] in self.RiskRule:
             if level in self.RiskRule[sn[0:4]]:
-                return self.RiskRule[sn[0:4]][level]
+                if str(member) in self.RiskRule[sn[0:4]][level]:
+                    _idx = self.RiskRule[sn[0:4]][level].index(str(member))
+                    #_debug(10,">>> _idx = %d" % _idx)
+                    return self.RiskRule[sn[0:4]][level][_idx+1:]
+                else:
+                    return self.RiskRule[sn[0:4]][level]
+        #_debug(10,">>> sn=[%s]" % sn)
+        return []
 
     def _sleep(self):
         """
@@ -930,7 +937,7 @@ class System(object):
             self.message_rec.insert([fr_member,to_member,sn,subject,node,level,info,0,0])
             if level>1:
                 # 把信息 按照风险责任规则定义 分发给相关人员
-                _to_members = self._toMember(sn,level)
+                _to_members = self._toMember(fr_member,sn,level)
                 for _m in _to_members:
                     _scan = k_db_scan({'table':'message_rec','field':['count(*)']},scan_one_hdr)
                     _rec = _scan.scan(where='fr_member_id=%s and to_member_id=%s and sn="%s" and node="%s" and level=%s' %
@@ -1060,6 +1067,7 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
                 _start_time = _time
         else:
             _node = '政务大厅'
+
     if _node in ['inform']:
         _node = '办结'
     if _node in ['领导审批意见']:
@@ -1178,7 +1186,9 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     _sn = str(one[1])
     # 对sn的数据清洗
     #
-    if _sn[0:4] not in ['RLZY','LWPQ','TSGS','JYZS','MBZY','JGXX']:
+    if _node is '政务大厅':
+        _sn = '-1'
+    if _sn[0:5] not in ['RLZYF','LWPQX','TSGSG','JYZSP','MBZYP','JGXXC','JGXXS']:
         # 对无效的流水号，统一赋值为"-1"
         _sn = '-1'
 
@@ -1186,7 +1196,8 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         _rec = record.search(where='sn="%s" and node="受理" and subject="%s" and end_time="%s"' %
                                    (_sn,str(one[7]),_end_time))
         if len(_rec)>0:
-            _sn += '*'
+            if _sn is not "-1":
+                _sn = '-1'
 
     if (_sn is not '-1') and ('*' not in _sn):
         # 人员工作量计量
