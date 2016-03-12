@@ -112,7 +112,7 @@ create TABLE scope (
 
 -- 人员
 create TABLE member (
-  id decimal(38,0) NOT NULL COMMENT '人员ID，与OA系统同步',
+  id VARCHAR (64) NOT NULL COMMENT '人员ID，与OA系统同步',
   name VARCHAR (24) NOT NULL COMMENT '姓名',
   cid VARCHAR (24) NOT NULL COMMENT '身份证',
   tel VARCHAR (24) COMMENT '联系电话',
@@ -192,8 +192,8 @@ create TABLE message_rec (
   id INT NOT NULL AUTO_INCREMENT,
   start_date timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '发起时间',
   end_date datetime COMMENT '标志readed=1时的时间',
-  fr_member_id decimal(38,0) NOT NULL COMMENT '发起人ID',
-  to_member_id decimal(38,0) NOT NULL COMMENT '接收人ID',
+  fr_member_id VARCHAR (64)NOT NULL COMMENT '发起人ID',
+  to_member_id VARCHAR (64) NOT NULL COMMENT '接收人ID',
   sn VARCHAR (80) NOT NULL COMMENT '业务标识，如流水号',
   subject VARCHAR (255) NOT NULL COMMENT '主题',
   node VARCHAR (80) NOT NULL COMMENT '环节',
@@ -216,8 +216,9 @@ create TABLE affair_line (
 
 -- 业务线环节
 create TABLE affair_post (
+  id INT NOT NULL AUTO_INCREMENT COMMENT '用于排序',
   line_id INT NOT NULL COMMENT '事务办理业务线ID',
   name VARCHAR (255) NOT NULL COMMENT '环节名称',
   t_limit INT NOT NULL COMMENT '时限',
-  PRIMARY KEY (line_id,name)
+  PRIMARY KEY (id,line_id,name)
 ) default charset=utf8;

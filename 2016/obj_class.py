@@ -13,7 +13,7 @@
 __author__ = 'shenwei'
 
 import utils
-import datetime,time
+import datetime,time,random
 
 _debug_level = 10
 
@@ -417,7 +417,7 @@ class c_member(k_object):
     人员类
     """
 
-    def __init__(self,id=0,values=None,writeable=False,create=False,hasid=False):
+    def __init__(self,id="",values=None,writeable=False,create=False,hasid=False):
         self._metadata = {
             'table':'member',
             'id':id,
@@ -713,7 +713,7 @@ class System(object):
             休眠 60 秒
         :return:
         """
-        time.sleep(600)
+        time.sleep(60)
 
     def _RiskHdr(self,evt_rec,type=0):
         """
@@ -742,7 +742,7 @@ class System(object):
                         if _v < _limit:
                             _debug(5,">>> !!! RISK too fast! %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                             self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
-                                             '风险事故（内部）：岗位在办理该事务时过快，无法保证审核质量。')
+                                             '风险事故：岗位在办理该事务时过快，无法保证审核质量。')
                 # 处理审批未通过的事务
                 _month = time.localtime().tm_mon
                 if _r.has_key('org_code'):
@@ -780,15 +780,15 @@ class System(object):
                     elif _v>(3600-255):
                         _debug(5,">>> !!! ALARM 3 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],3,
-                                         '风险预测（高）预警：办理事务即将超期，请立刻办理！')
+                                         '风险预测预警：办理事务即将超期，请立刻办理！')
                     elif _v>(3600-450):
                         _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],2,
-                                         '风险预测（中）预警：办理事务即将超期，请尽快办理！')
+                                         '风险预测预警：办理事务即将超期，请尽快办理！')
                     elif _v>(3600-900):
                         _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],1,
-                                         '风险预测（低）预警：办理事务即将超期，请办理！')
+                                         '风险预测预警：办理事务即将超期，请办理！')
 
                     _v = int(str(_r['take']))
                     _limit = self._get_post_limit(_r['sn'],_r['node']) * 450
@@ -800,19 +800,19 @@ class System(object):
                         if _v > _limit:
                             _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                             self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],4,
-                                            '风险事故（内部）：办理事务的岗位时限超期！')
+                                            '风险事故：办理事务的岗位时限超期！')
                         elif _v > _l3_limit:
                             _debug(5,">>> !!! ALARM 3 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                             self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],3,
-                                            '风险预测（高）预警（岗位）：办理事务即将超期！，请立刻办理！')
+                                            '风险预测预警：办理事务即将超期！，请立刻办理！')
                         elif _v > _l2_limit:
                             _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                             self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],2,
-                                            '风险预测（中）预警（岗位）：办理事务即将超期！，请尽快办理')
+                                            '风险预测预警：办理事务即将超期！，请尽快办理')
                         elif _v > _l1_limit:
                             _debug(5,">>> !!! ALARM 1 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                             self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],1,
-                                            '风险预测（低）预警(岗位）：办理事务超期！，请办理')
+                                            '风险预测预警：办理事务即将超期！，请办理')
 
     def doChkAffair(self):
         """
@@ -930,7 +930,7 @@ class System(object):
         :return:
         """
         _scan = k_db_scan({'table':'message_rec','field':['count(*)']},scan_one_hdr)
-        _rec = _scan.scan(where='fr_member_id=%s and to_member_id=%s and sn="%s" and node="%s" and level=%s' %
+        _rec = _scan.scan(where='fr_member_id="%s" and to_member_id="%s" and sn="%s" and node="%s" and level=%s' %
                          (str(fr_member),str(to_member),str(sn),str(node),str(level)))
 
         if int(str(_rec[0][0]))==0:
@@ -940,12 +940,12 @@ class System(object):
                 _to_members = self._toMember(fr_member,sn,level)
                 for _m in _to_members:
                     _scan = k_db_scan({'table':'message_rec','field':['count(*)']},scan_one_hdr)
-                    _rec = _scan.scan(where='fr_member_id=%s and to_member_id=%s and sn="%s" and node="%s" and level=%s' %
+                    _rec = _scan.scan(where='fr_member_id="%s" and to_member_id="%s" and sn="%s" and node="%s" and level=%s' %
                                      (str(fr_member),_m,str(sn),str(node),str(level)))
                     if int(str(_rec[0][0]))==0:
                         self.message_rec.insert([fr_member,_m,sn,subject,node,level,info,0,0])
 
-            _member = c_member(id=int(fr_member))
+            _member = c_member(id=str(fr_member))
             if level>3:
                 _member.risk_quota.add(1)
             _month = time.localtime().tm_mon
@@ -1051,6 +1051,7 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     _end_time = str(one[5])
 
     # 清洗 环节node 数据
+    # 清洗 OA的ctp_affair记录数据，统一流程环节名词
     _node = str(one[2])
     if _node in ['collaboration','vouch']:
         if node==0:
@@ -1067,7 +1068,6 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
                 _start_time = _time
         else:
             _node = '政务大厅'
-
     if _node in ['inform']:
         _node = '办结'
     if _node in ['领导审批意见']:
@@ -1075,10 +1075,11 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     if _node in ['现场审查']:
         _node = '现场'
 
-    # 数据清洗
+    # 清洗 OA的col_summary记录中的 机构代码
     _org_code = str(one[9])
     if _org_code in ['None','NONE','NULL','Null',""]:
         _org_code = "测试-机构代码"
+    # 清洗 OA的col_summary记录中的 法人名称
     _person_name = str(one[15])
     if _person_name in ['None','NONE','NULL','Null',""]:
         _person_name = "测试-法人"
@@ -1120,9 +1121,15 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
             _id = str(_id[0][0])
             _org = c_org(id=int(_id))
         else:
+            # 用 测试样本数据
+            _org = c_org(values=[_org_code,'贵阳市“世海游”旅游公司','贵州省贵阳市云岩区市府街007号',
+                                 '注册资金：%s^工商注册码：%s^工商注册地址：%s' % ('50万元','TST0001','贵州省贵阳市云岩区市府街007号'),
+                                 _person.get_id()],writeable=True,create=True)
+            """
             _org = c_org(values=[_org_code,str(one[10]),str(one[11]),
                                  '注册资金：%s^工商注册码：%s^工商注册地址：%s' % (str(one[12]),str(one[13]),str(one[14])),
                                  _person.get_id()],writeable=True,create=True)
+            """
         #
         # 计算 机构 申报指标
         # 申报总量+1
@@ -1192,16 +1199,19 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
         # 对无效的流水号，统一赋值为"-1"
         _sn = '-1'
 
+    if _node in ['受理'] and '(' in str(one[7]) and '-' in str(one[7]) and ':' in str(one[7]):
+        _sn = '-1'
+
     if _node in ['受理'] and '自动' in str(one[7]) and '补正' in str(one[7]):
+        # 过滤掉 由OA自动为补正发起的 事务
         _rec = record.search(where='sn="%s" and node="受理" and subject="%s" and end_time="%s"' %
                                    (_sn,str(one[7]),_end_time))
         if len(_rec)>0:
-            if _sn is not "-1":
-                _sn = '-1'
+            _sn = '-1'
 
     if (_sn is not '-1') and ('*' not in _sn):
         # 人员工作量计量
-        _member = c_member(id=int(str(one[6])))
+        _member = c_member(id=str(one[6]))
 
         _debug(0,">>> _member.id = %s" % _member.get_id())
 
@@ -1341,11 +1351,35 @@ def sync_member():
             curr.close()
             if cnt==0:
                 # 新增 人员！
-                c_member(id=int(str(one[0])),values=[str(one[0]),str(one[1]),'-','-'],writeable=True,create=True,hasid=True)
+                c_member(id=str(one[0]),values=[str(one[0]),str(one[1]),'-','-'],writeable=True,create=True,hasid=True)
                 _debug(4,">>> build_member %s" % str(one[1]))
     cur.close()
 
+def g_samples():
+    """
+    生成 测试样本数据
+    :return:
+    """
+    #
+    # 随机产生 趋势数据
+    _scan = k_db_scan(metadata={'table':'scope','field':['id']},scan_hdr=scan_one_hdr)
+    _cur = utils.mysql_conn()
+    _ids = _scan.scan()
+    for _id in _ids:
+        for _m in range(1,13):
+            _min = random.uniform(10,500)
+            _avg = _min + random.uniform(10,500)
+            _max = _avg + random.uniform(10,500)
+            _set_min = 'm%d_min = %d' % (_m,int(_min))
+            _set_avg = 'm%d_avg = %d' % (_m,int(_avg))
+            _set_max = 'm%d_max = %d' % (_m,int(_max))
+            _sql = 'update scope set %s,%s,%s where id=%s' % (_set_min,_set_avg,_set_max,str(_id[0]))
+            _cur.execute(_sql)
+
 if __name__ == '__main__':
+
+    # 生成 测试样本数据
+    g_samples()
 
     # 同步 member 对象数据
     sync_member()
