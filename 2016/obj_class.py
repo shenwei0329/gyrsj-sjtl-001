@@ -801,7 +801,9 @@ class System(object):
                         _r['create_date']
                     ))
                     # 计算总共 已用时
-                    _v = utils.cal_workdays(_r['create_date'],datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    _cur = utils.mysql_conn()
+                    _v = utils.cal_workdays(_cur,_r['create_date'],datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                    _cur.close()
                     # 是否超出 8 天总时限
                     if _v>3600:
                         """
@@ -940,7 +942,7 @@ class System(object):
             # 计算 人员 效率趋向
             #
             _v = _member_cal[_k]
-            _member = c_member(id=int(_k))
+            _member = c_member(id=str(_k))
             _member.eff_quota.setScope(_month,'min',_v[0]*10)
             _member.eff_quota.setScope(_month,'max',_v[1]*10)
             _member.eff_quota.setScope(_month,'avg',(_v[2]*10)/_v[3])
@@ -954,7 +956,7 @@ class System(object):
     def _get_post_limit(self,sn,post):
         """
         获取 事务处理线 某环节的 时限
-        :param name: 事务处理线名称
+        :param sn: 事务处理线名称
         :param post: 环节名称
         :return: 时限
         """
@@ -1434,7 +1436,7 @@ def g_samples():
 if __name__ == '__main__':
 
     # 生成 测试样本数据
-    g_samples()
+    #g_samples()
 
     # 同步 member 对象数据
     sync_member()

@@ -1566,20 +1566,6 @@ def build_ServiceObject(cur_mysql,summary_id):
 
     return rec
 
-# 根据 当事人 和 风险级别 确定通知对象
-#
-def get_receiver( member,level ):
-    _cur = mysql_conn()
-    #
-    # org_post: 纪检、分管领导、处长、一般人员
-    # org_unit: 部门
-    #
-    # 若 当事人 不是 （分管领导 & 处长）
-    # ：处长 = 与当事人在相同部门（org_department_id相同) & org_post
-    #
-    _cur.close()
-    return []
-
 #
 # Eof
 #
