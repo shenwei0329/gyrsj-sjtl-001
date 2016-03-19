@@ -332,7 +332,7 @@ class c_record(k_db):
 
 class c_scope(k_object):
     """
-    趋势类
+    趋势类，是Quota的关联数据
     """
 
     def __init__(self,id=0,values=None,writeable=False,create=False):
@@ -358,6 +358,9 @@ class c_quota(k_object):
         super(c_quota,self).__init__(self._metadata,values=values,writeable=writeable,create=create)
 
         if create:
+            """
+            设置初始值
+            """
             _v = [
                 self.get_id()
                 ,self.get('name')
@@ -372,6 +375,9 @@ class c_quota(k_object):
         self.scope = c_scope(id=self.get_id(),values=_v,writeable=writeable,create=create)
 
     def add(self,value):
+        """
+        增加计量值
+        """
         _v = self.get('mass')
         if _v is not None:
             _v = int(_v) + int(value)
@@ -379,6 +385,12 @@ class c_quota(k_object):
         return _v
 
     def addScope(self,index,type,value):
+        """
+        增加指定Scope域的值
+        index：月份
+        type：类型，min/avg/max
+        value：增加值
+        """
         if index in range(1,13) and type in ['min','avg','max']:
             _field = "m%d_%s" % (index,type)
             _value = int(self.scope.get(_field)) + 1
@@ -387,6 +399,10 @@ class c_quota(k_object):
             _debug(1,'c_quota setScope invalid[%d,%s,%d]' % (index,type,int(value)))
 
     def addAllScope(self,index,value):
+        """
+        把指定的Scope域的所有类型的值都进行add
+        index：月份
+        """
         if index in range(1,13):
             self.addScope(index,'min',int(value))
             self.addScope(index,'avg',int(value))
@@ -395,6 +411,12 @@ class c_quota(k_object):
             _debug(1,'c_quota addAllScope invalid[%d,%d]' % (index,int(value)))
 
     def setScope(self,index,type,value):
+        """
+        设置指定Scope域的值
+        index：月份
+        type：类型，min/avg/max
+        value：设置的值
+        """
         if index in range(1,13) and type in ['min','avg','max']:
             _field = "m%d_%s" % (index,type)
             self.scope.set(_field,int(value))
@@ -402,6 +424,11 @@ class c_quota(k_object):
             _debug(1,'c_quota setScope invalid[%d,%s,%d]' % (index,type,int(value)))
 
     def setAllScope(self,index,value):
+        """
+        设置指定Scope域的所有类型的值
+        index：月份
+        value：值
+        """
         if index in range(1,13):
             _field = "m%d_min" % index
             self.scope.set(_field,int(value))
@@ -565,6 +592,9 @@ class System(object):
     """
     系统定义【处理机】
     """
+    org_name = ''
+    app_name = ''
+    
     def __init__(self):
         self.org_name = '贵阳市人力资源和社会保障局'
         self.app_name = '数据铁笼'
@@ -774,22 +804,41 @@ class System(object):
                     _v = utils.cal_workdays(_r['create_date'],datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                     # 是否超出 8 天总时限
                     if _v>3600:
+                        """
+                        超期！（8个工作日）
+                        """
                         _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],5,
                                          '风险事故：办理事务的总时限超期！')
                     elif _v>(3600-255):
+                        """
+                        还有半天时间，发出3级预警！
+                        """
                         _debug(5,">>> !!! ALARM 3 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],3,
                                          '风险预测预警：办理事务即将超期，请立刻办理！')
                     elif _v>(3600-450):
+                        """
+                        提前1天发出2级预警
+                        """
                         _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],2,
                                          '风险预测预警：办理事务即将超期，请尽快办理！')
                     elif _v>(3600-900):
+                        """
+                        按一天7.5小时＝7.5*60=450分钟，8天＝450*8=3600分钟，2天＝900分钟
+                        提前2天发出1级预警
+                        """
                         _debug(5,">>> !!! ALARM 2 %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],1,
                                          '风险预测预警：办理事务即将超期，请办理！')
 
+                    """
+                    流程环节的预警规则：
+                    1）一半期限
+                    2）一半＋1/3期限
+                    3）一半＋2/3期限
+                    """
                     _v = int(str(_r['take']))
                     _limit = self._get_post_limit(_r['sn'],_r['node']) * 450
                     _l1_limit = _limit/2
@@ -934,6 +983,9 @@ class System(object):
                          (str(fr_member),str(to_member),str(sn),str(node),str(level)))
 
         if int(str(_rec[0][0]))==0:
+            """
+            防止放入相同的信息！增加一个新的记录
+            """
             self.message_rec.insert([fr_member,to_member,sn,subject,node,level,info,0,0])
             if level>1:
                 # 把信息 按照风险责任规则定义 分发给相关人员
@@ -949,6 +1001,9 @@ class System(object):
             if level>3:
                 _member.risk_quota.add(1)
             _month = time.localtime().tm_mon
+            """
+            在Scope中，max用于记录 风险事件的计数；avg用于记录［2，3］的预警计数；min用于记录［1］的预警计数
+            """
             if level>3:
                 _member.risk_quota.addScope(_month,'max',1)
             elif level>1:
@@ -1042,10 +1097,10 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
     _str = str(one[5])
     if len(_str)>7 and '-' in _str and ':' in _str:
         _m_str = str(one[5])[5:7]
-        _debug(10,'>>> _m_str = %s:%s' % (str(one[5]),_m_str))
+        # _debug(10,'>>> _m_str = %s:%s' % (str(one[5]),_m_str))
         if _m_str.isdigit():
             _month = int(_m_str)
-    _debug(10,'>>> _month = %d' % _month)
+    # _debug(10,'>>> _month = %d' % _month)
 
     _start_time = str(one[4])
     _end_time = str(one[5])
