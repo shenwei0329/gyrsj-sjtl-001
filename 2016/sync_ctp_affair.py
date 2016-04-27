@@ -25,6 +25,7 @@ def do_rec(cur,cur_mysql,in_sql):
             for i in range(cnt):
                 #print i,one[i]
                 sql += '"'+str(one[i])+'"'
+            sql += ')'
         else:
             break
 

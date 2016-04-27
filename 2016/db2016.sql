@@ -211,6 +211,7 @@ create TABLE affair_line (
   sn VARCHAR (80) NOT NULL COMMENT '业务标识，如流水号标识',
   department VARCHAR (255) NOT NULL COMMENT '办理部门名称',
   leader VARCHAR (255) NOT NULL COMMENT '分管领导',
+  ti_limit INT DEFAULT 8 COMMENT '业务线总时限，缺省8天'
   PRIMARY KEY (id)
 ) default charset=utf8;
 
@@ -218,9 +219,10 @@ create TABLE affair_line (
 create TABLE affair_post (
   id INT NOT NULL AUTO_INCREMENT COMMENT '用于排序',
   line_id INT NOT NULL COMMENT '事务办理业务线ID',
+  line_name VARCHAR (255) NOT NULL COMMENT '事务办理业务线名称',
   name VARCHAR (255) NOT NULL COMMENT '环节名称',
   t_limit INT NOT NULL COMMENT '时限',
-  PRIMARY KEY (id,line_id,name)
+  PRIMARY KEY (line_id,name)
 ) default charset=utf8;
 
 -- 与OA同步
@@ -279,3 +281,49 @@ CREATE TABLE ctp_affair (
   FORM_RELATIVE_STATIC_IDS varchar(255) DEFAULT NULL,
   FORM_RELATIVE_QUERY_IDS varchar(255) DEFAULT NULL
 ) DEFAULT CHARSET=utf8
+
+-- 各个环节的各类风险的负责人
+create TABLE post_offical (
+  id INT NOT NULL AUTO_INCREMENT COMMENT '用于排序',
+  line_name VARCHAR (255) NOT NULL COMMENT '事务办理业务线名称',
+  risk_lvl INT NOT NULL COMMENT '风险级别',
+  member_id VARCHAR (255) NOT NULL COMMENT '人员ID',
+  PRIMARY KEY (line_name,risk_lvl,member_id)
+) default charset=utf8;
+
+-- 业绩考核项
+create TABLE kpi_param (
+  id INT NOT NULL AUTO_INCREMENT COMMENT '用于排序',
+  name VARCHAR (255) NOT NULL COMMENT '项目名称'
+  line_name INT NOT NULL COMMENT '事务办理业务线名称',
+  power INT DEFAULT 100 COMMENT '权重',
+  desc VARCHAR (255) COMMENT '说明',
+  op VARCHAR (16) DEFAULT '1' COMMENT '加分：1，减分：-1',
+  PRIMARY KEY (name,line_name)
+) default charset=utf8;
+
+-- 风险项
+create TABLE risk_def (
+  id INT NOT NULL AUTO_INCREMENT COMMENT '用于排序',
+  name VARCHAR (255) NOT NULL COMMENT '项目名称',
+  line_name INT NOT NULL COMMENT '事务办理业务线名称',
+  threshold INT DEFAULT 100 COMMENT '阈值 1~100%',
+  type VARCHAR (255) COMMENT '类型，预警：0；警告：9',
+  lvl INT DEFAULT 1 COMMENT '级别，当type=0时，1，2，3；当type=9，1-内部，2-外部',
+  group_name VARCHAR (255) NOT NULL COMMENT '通报组名称',
+  PRIMARY KEY (name,line_name,type,lvl)
+) default charset=utf8;
+
+-- 通报组
+create TABLE group_def (
+  id INT NOT NULL AUTO_INCREMENT COMMENT '通报组号',
+  name VARCHAR (255) NOT NULL COMMENT '项目名称',
+  PRIMARY KEY (name)
+) default charset=utf8;
+
+-- 通报组组员
+create TABLE group_def (
+  group_id INT NOT NULL COMMENT '组号',
+  member_id VARCHAR (255) NOT NULL COMMENT '项目名称',
+  PRIMARY KEY (group_id,member_id)
+) default charset=utf8;
