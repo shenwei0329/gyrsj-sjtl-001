@@ -753,7 +753,7 @@ class System(object):
         :return:
         """
         if type==0:
-            # 已完成
+            # 针对已完成的行为
             for _r in evt_rec:
                 if _r.has_key('member') and _r.has_key('sn') and _r.has_key('node') and \
                         _r.has_key('take') and _r.has_key('subject'):
@@ -789,7 +789,7 @@ class System(object):
                         _person = c_legalperson(id=int(str(_rr[0][0])))
                         _person.declare_quota.addScope(_month,'avg',1)
         else:
-            # 未完成
+            # 针对未完成（过程中）的行为
             for _r in evt_rec:
                 if len(_r)==6:
                     _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s,%s]" % (
@@ -807,7 +807,7 @@ class System(object):
                     # 是否超出 8 天总时限
                     if _v>3600:
                         """
-                        超期！（8个工作日）
+                        超期！（8个工作日，每天7.5小时计）
                         """
                         _debug(5,">>> !!! RISK %s-%s-%s" % (str(_r['member']),str(_r['sn']),str(_r['node'])))
                         self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],5,
@@ -905,7 +905,7 @@ class System(object):
 
     def syncEff(self):
         """
-        扫描 获取 人员的 趋势数据
+        通过扫描 获取 人员的 趋势数据
         :return:
         """
         _month = time.localtime().tm_mon
@@ -1029,14 +1029,20 @@ class System(object):
             # 时间间隔 处理
             _5min -= 1
             if 0>=_5min:
+                """每5分钟计算一次 总指标
+                """
                 _5min = 5
                 self.syncTotal()
             _hour -= 1
             if 0>=_hour:
+                """每一小时汇总一次人员趋势
+                """
                 _hour = 60
                 self.syncEff()
             _day -= 1
             if 0>= _day:
+                """每天与OA系统同步一次人员信息
+                """
                 _day = 1440
                 sync_member()
 
