@@ -17,6 +17,27 @@ import datetime,time,random
 
 _debug_level = 10
 
+'''for MongoDB json
+'''
+MetaData = {
+    'name':'',
+    'desc':'',
+    'etl':{
+        'src':'',
+        'dst':'',
+        'policy':'',
+        'cleansing_rule':'',
+        'transorm_rule':'',
+    },
+    'version':'',
+    'security':{
+        'fields':{},
+        'acl':{},
+        'level':{},
+        'share':{},
+    },
+}
+
 def _debug(lvl,info):
     if lvl >= _debug_level:
         print(">>>%s %s\t%s") % (

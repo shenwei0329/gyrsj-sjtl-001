@@ -165,3 +165,11 @@ create TABLE message_rec (
   readed INT NOT NULL COMMENT '0：未读；1：已读'
 ) default charset=utf8;
 
+-- 权力管理
+-- 办理流程
+CREATE TABLE  process (
+  id INT NOT NULL AUTO_INCREMENT,
+  name VARCHAR (80) NOT NULL COMMENT '业务名称',
+  desc VARCHAR (255) NOT NULL COMMENT '描述'
+  PRIMARY KEY (id)
+) default charset=utf8;
