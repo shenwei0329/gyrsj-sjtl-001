@@ -48,7 +48,7 @@ def do_rec(cur,cur_mysql,in_sql):
                 else:
                     sql += '"'+str(one[i])+'"'
                     if i==2:
-                        subject = str(one[i])
+                        subject = str(one[i]).replace('"','-')
                     if i==8:
                         start_member = str(one[i])
                     if i==6:
