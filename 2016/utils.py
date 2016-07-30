@@ -131,7 +131,7 @@ def get_form(cur_oracle,cur_mysql,line_id,desc):
                 field = 'formmain_0000'
 
             if desc in name:
-                print(">>> name=%s, desc=%s, line_id=%s, id=%s" % (name,desc,str(line_id),str(id)))
+                #print(">>> name=%s, desc=%s, line_id=%s, id=%s" % (name,desc,str(line_id),str(id)))
                 #判断表单名称中是否包含关键字，如人力资源、劳动派遣等
                 sync_line_id(cur_mysql,line_id,id,name,field)
         else:
@@ -166,7 +166,9 @@ def sync_formmain(cur_oracle,cur_mysql,formmain_name):
             # 对新纪录，构建SQL语句
             sql = 'insert into formmain'
             cnt = len(one)
+
             #print('>>> cnt=%d<<<' % cnt)
+
             if cnt>13:
                 # 动态生成FIELD域
                 sql += '(formmain_name,ID,STATE,START_MEMBER_ID,START_DATE,APPROVE_MEMBER_ID,APPROVE_DATE,'
@@ -189,6 +191,9 @@ def sync_formmain(cur_oracle,cur_mysql,formmain_name):
             sql += ')'
             #print sql
             # 同步该记录
+
+            #print(">>> do insert[%s]" % sql)
+
             cur_mysql.execute(sql)
         else:
             break
@@ -1267,18 +1272,26 @@ def get_summary_feild_value(cur_mysql,summary_id,field_desc):
     if cnt>0:
 
         one = cur_mysql.fetchone()
+
+        # 表单 应用ID
         form_appid = str(one[0])
+        # 表单 记录ID
         form_recordid = str(one[1])
+
+        # 从 line_def 表中获取 该应用ID 的 底表名称
         sql = 'select formmain_name from line_def where form_def_id="%s"' % form_appid
         cnt = cur_mysql.execute(sql)
         if cnt>0:
 
             one = cur_mysql.fetchone()
+            # 获取 底表名称
             formmain_name = str(one[0])
             print(">>>formmain_name=%s<<<" % formmain_name)
+            # 根据 底表名称 获取表中的 需要的域值
             field_name,name = find_field_name(cur_mysql,formmain_name,field_desc)
             print(">>>field_name:%s,name:%s,form_recordid=%s<<<" % (field_name,name,form_recordid))
             if field_name is not None:
+                # 获取域值
                 value = get_field_value(cur_mysql,form_recordid,field_name)
 
     return value
@@ -1287,6 +1300,7 @@ def get_summary_feild_value(cur_mysql,summary_id,field_desc):
 #
 def get_summary_submit_date(cur_mysql,summary_id):
 
+    # 从 摘要表 中提取 提交日期
     submit_date = get_summary_feild_value(cur_mysql,summary_id,"受理时间")
     return submit_date
 
@@ -1297,6 +1311,8 @@ def is_holiday(str_date):
 
 # 验证该业务线的申请是否带齐必要的附件
 # 若未带齐，则发出“风险”警告
+#
+# 注：需要增加5个“新”业务的内容
 #
 def chk_file(cur_mysql,summary_id,line_id):
 
@@ -1343,6 +1359,10 @@ def chk_file(cur_mysql,summary_id,line_id):
             #print(">>>val=%s<<<" % val)
             if val==None or val=="None" or val=="NONE":
                 return False
+
+    #
+    # IMP 需要补充另外5个业务线的 材料 明细
+    #
 
     return True
 
@@ -1565,6 +1585,38 @@ def build_ServiceObject(cur_mysql,summary_id):
     rec['operator_tel'] = get_summary_feild_value(cur_mysql,summary_id,"经办人联系电话")
 
     return rec
+
+# 动态装载 python 模块
+#
+def auto_reload():
+
+    # 定义需要动态管理的模块
+    mods = ["my_config"]
+
+    for mod in mods:
+        try:
+            # 获取模块
+            module = sys.modules[mod]
+        except:
+            # 在系统中该模块不存在！
+            continue
+
+        filename = module.__file__
+
+        # .pyc修改时间不会变,又不能删除.pyc,所以就用.py的修改时间,如果有更好的办法就谢谢了.
+        if filename.endswith(".pyc"):
+            filename = filename.replace(".pyc", ".py")
+        mod_time = os.path.getmtime(filename)
+        if not "loadtime" in module.__dict__:
+            module.loadtime = 0 # first load's time  1*
+
+        try:
+            if mod_time > module.loadtime:
+                reload(module)
+        except:
+            pass
+
+        module.loadtime = mod_time # 2*
 
 #
 # Eof

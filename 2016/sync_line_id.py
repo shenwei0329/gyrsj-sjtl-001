@@ -19,10 +19,33 @@ utils.get_form(cur_oracle,cur_mysql,2,'劳务派遣')
 utils.get_form(cur_oracle,cur_mysql,1,'分管领导指派优先办理')
 utils.get_form(cur_oracle,cur_mysql,2,'分管领导指派优先办理')
 
+#
+# 台湾、香港、澳门人员就业证办理就业审批表
+# 台湾、香港、澳门人员就业证办理就业审批补正
+#
+#
 utils.get_form(cur_oracle,cur_mysql,3,'台湾、香港、澳门人员就业证办理就业')
+
+#
+# 特殊工时工作制审批表
+#
 utils.get_form(cur_oracle,cur_mysql,4,'特殊工时工作制')
+
+#
+# 贵阳市民办职业培训学校审批表
+#
 utils.get_form(cur_oracle,cur_mysql,5,'贵阳市民办职业培训学校')
+
+#
+# 技工学校筹设行政许可审批表
+# 技工学校筹设行政许可审批（补正）
+#
 utils.get_form(cur_oracle,cur_mysql,6,'技工学校筹设行政许可')
+
+#
+# 技工学校设立行政许可审批
+# 技工学校设立行政许可审批（补正）
+#
 utils.get_form(cur_oracle,cur_mysql,7,'技工学校设立行政许可')
 
 cur_mysql.close()

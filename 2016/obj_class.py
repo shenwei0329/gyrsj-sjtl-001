@@ -9,6 +9,9 @@
 #   待考虑事项：（注：在一期工程考虑）
 #   1）引用 k-v 模式建立 对象的标量，实现动态、弹性关联
 #
+#   2016.6.3 @ 贵阳
+#   加强对 OA 表单的解析，已获取更多详细的明细信息，提高信息质量
+#
 
 __author__ = 'shenwei'
 
@@ -16,27 +19,6 @@ import utils
 import datetime,time,random
 
 _debug_level = 10
-
-'''for MongoDB json
-'''
-MetaData = {
-    'name':'',
-    'desc':'',
-    'etl':{
-        'src':'',
-        'dst':'',
-        'policy':'',
-        'cleansing_rule':'',
-        'transorm_rule':'',
-    },
-    'version':'',
-    'security':{
-        'fields':{},
-        'acl':{},
-        'level':{},
-        'share':{},
-    },
-}
 
 def _debug(lvl,info):
     if lvl >= _debug_level:
@@ -167,7 +149,7 @@ class k_db(object):
 
 class k_db_scan(object):
     """
-    数据库操 扫描处理 类
+    数据库操作 扫描处理 类
     """
 
     def __init__(self,metadata,scan_hdr):
@@ -193,6 +175,18 @@ class k_db_scan(object):
         super(k_db_scan,self).__init__()
 
     def scan(self,where=None,record=None,node=1,record_rec=None):
+        """
+        :parameter
+            where: 查询条件
+            record: 一个”记录类“，用于insert一个记录，针对affair_trace
+            node: 定义流程的”环节“，如node=0表示受理环节
+            record_rec: 一个”记录类“，用于insert一个记录，针对affair_rec
+        :return
+            _ret[]: 本次扫描的结果项
+
+        从其参数可看出，这个处理是仅针对affair的
+
+        """
         _ret = []
         try:
             _cur = utils.mysql_conn()
