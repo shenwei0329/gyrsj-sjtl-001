@@ -20,6 +20,27 @@ import datetime,time,random
 
 _debug_level = 10
 
+'''for MongoDB json
+'''
+MetaData = {
+    'name':'',
+    'desc':'',
+    'etl':{
+        'src':'',
+        'dst':'',
+        'policy':'',
+        'cleansing_rule':'',
+        'transorm_rule':'',
+    },
+    'version':'',
+    'security':{
+        'fields':{},
+        'acl':{},
+        'level':{},
+        'share':{},
+    },
+}
+
 def _debug(lvl,info):
     if lvl >= _debug_level:
         print(">>>%s %s\t%s") % (
@@ -740,6 +761,23 @@ class System(object):
                                 5:['309589157653594281','3449282702262554049','-7221668022947721994','7523849018428050552','1329013287631799142']}
         }
 
+    def _getLineBySn(self,sn):
+        if 'RLZYFWXK' in sn:
+            return 0
+        if 'LWPQXK' in sn:
+            return 1
+        if 'JYZSP' in sn:
+            return 2
+        if 'TSGSGZZ' in sn:
+            return 3
+        if 'MBZYPXXX' in sn:
+            return 4
+        if 'JGXXCS' in sn:
+            return 5
+        if 'JGXXSL' in sn:
+            return 6
+        return -1
+
     def _toMember(self,member,sn,level):
         if sn[0:4] in self.RiskRule:
             if level in self.RiskRule[sn[0:4]]:
@@ -806,17 +844,25 @@ class System(object):
         else:
             # 针对未完成（过程中）的行为
             for _r in evt_rec:
-                if len(_r)==6:
-                    _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s,%s]" % (
+                if len(_r)==7:
+                    _debug(5,">>> System doChkRisk [%s,%s,%s,%s,%s,%s,%s]" % (
                         _r['member'],
                         _r['sn'],
                         _r['node'],
                         _r['take'],
                         _r['subject'],
-                        _r['create_date']
+                        _r['create_date'],
+                        _r['summary_id']
                     ))
                     # 计算总共 已用时
                     _cur = utils.mysql_conn()
+                    #
+                    # 判断附件是否齐全
+                    #
+                    if not utils.chk_file(_cur,_r['summary_id'],self._getLineBySn(_r['sn'])):
+                        self.sendMessage(_r['member'],_r['member'],_r['sn'],_r['subject'],_r['node'],5,
+                                         '风险事故：提交材料缺失！')
+
                     _v = utils.cal_workdays(_cur,_r['create_date'],datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
                     _cur.close()
                     # 是否超出 8 天总时限
@@ -889,6 +935,7 @@ class System(object):
         """
         # 扫描受理环节事务
         _rec = self.affair_scan.scan(where=self.where_2,record=self.affair_trace,node=0,record_rec=self.affair_rec)
+        self._RiskHdr(_rec,type=1)
         # 扫描已完成事务
         _rec = self.affair_scan.scan(where=self.where_0,record=self.affair_trace,record_rec=self.affair_rec)
         self._RiskHdr(_rec)
@@ -1249,6 +1296,7 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
             _ret['take'] = _take
             _ret['subject'] = str(one[7])
             _ret['create_date'] = str(one[18])
+            _ret['summary_id'] = str(one[8])
     else:
         # 若只有一个时间，则表示该事务可能还停留在此 环节node 上
         # 当用于风险扫描时，应该看看是否有超时限的可能，现在距离 接收时间 的时间间隔？
@@ -1265,6 +1313,7 @@ def my_scan_hdr(one,record=None,node=1,record_rec=None):
             _ret['take'] = _take
             _ret['subject'] = str(one[7])
             _ret['create_date'] = str(one[18])
+            _ret['summary_id'] = str(one[8])
 
     # 判断(自动发起)的"受理"环节，此环节OA会出现两个相同的记录
     #
