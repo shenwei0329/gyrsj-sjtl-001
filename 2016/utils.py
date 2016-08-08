@@ -1318,9 +1318,23 @@ def chk_file(cur_mysql,summary_id,line_id):
 
     #print(">>>chk_file: id=%s,line_id=%s" % (summary_id,line_id))
 
-    if int(line_id)==2:
+    fn_line = []
+
+    if int(line_id) == 1:
+        # 人力资源
+        fn_line.append("贵阳市申请设立人力资源服务机构审批表")
+        fn_line.append("诚信守法经营的承诺书")
+        fn_line.append("工商营业执照副本")
+        fn_line.append("开办资金证明")
+        fn_line.append("与服务内容相适应的场所证明材料")
+        fn_line.append("拟设立人力资源服务机构的工作章程")
+        fn_line.append("与申请业务范围")
+        fn_line.append("名以上具备国家承认的大专以上学历")
+        fn_line.append("拟任负责人法定代表人的基本情况身份证明")
+        fn_line.append("工作人员的彩色照片")
+
+    elif int(line_id) == 2:
         # 劳务派遣
-        fn_line=[]
         fn_line.append("劳务派遣经营许可申请书")
         fn_line.append("申请报告")
         fn_line.append("营业执照副本")
@@ -1333,36 +1347,59 @@ def chk_file(cur_mysql,summary_id,line_id):
         fn_line.append("劳务派遣管理制度")
         fn_line.append("拟与用工单位签订的劳务派遣协议文本")
 
-        for field in fn_line:
-            val = get_summary_feild_value(cur_mysql,summary_id,field)
-            #print(">>>val=%s<<<" % val)
-            if val==None or val=="None" or val=="NONE":
-                return False
+    elif int(line_id) == 3:
+        # 台湾、香港、澳门人员就业证办理就业
+        fn_line.append("用人单位营业执照或组织机构代码复印件")
+        fn_line.append("用人单位与聘用的台港澳人员签订的劳动合同")
+        fn_line.append("台湾居民来往大陆通行证")
+        fn_line.append("由出入境检验部门出具的健康检查证明书")
+        fn_line.append("从事国家规定的职业技术工种的应持有相应的资格证明")
+        fn_line.append("所在地公安机关出具的住宿登记证")
+        fn_line.append("企业的批准书营业执照及组织机构代码证复印件")
+        fn_line.append("近期同底二寸免冠半身照片三张")
 
-    if int(line_id)==1:
-        # 人力资源
-        fn_line=[]
-        fn_line.append("贵阳市申请设立人力资源服务机构审批表")
-        fn_line.append("诚信守法经营的承诺书")
-        fn_line.append("工商营业执照副本")
-        fn_line.append("开办资金证明")
-        fn_line.append("与服务内容相适应的场所证明材料")
-        fn_line.append("拟设立人力资源服务机构的工作章程")
-        fn_line.append("与申请业务范围")
-        fn_line.append("名以上具备国家承认的大专以上学历")
-        fn_line.append("拟任负责人法定代表人的基本情况身份证明")
-        fn_line.append("工作人员的彩色照片")
+    elif int(line_id) == 4:
+        # 特殊工时工作制
+        fn_line.append("用人单位营业执照或组织机构代码复印件")
+        fn_line.append("申请报告")
+        fn_line.append("用人单位实行特殊工时工作制申请表")
+        fn_line.append("用人单位职工代表大会职工大会审议特殊工时工作制的决议复印件及参会职工代表名单")
+        fn_line.append("相应岗位实施特殊工时制的执行方案")
+        fn_line.append("申报岗位的职工代表认可签字及联系方式")
+        fn_line.append("企业和实行企业化管理的事业单位需提供集体合同或工资专项集体合同审查意见书复印件")
+        fn_line.append("劳动保障书面审查合格的证明")
+        fn_line.append("进行劳动用工备案的证明")
 
-        for field in fn_line:
-            #print(">>>field:%s<<<" % field)
-            val = get_summary_feild_value(cur_mysql,summary_id,field)
-            #print(">>>val=%s<<<" % val)
-            if val==None or val=="None" or val=="NONE":
-                return False
+    elif int(line_id) == 5:
+        # 贵阳市民办职业培训学校
+        fn_line.append("民办职业培训学校申办报告")
+        fn_line.append("拟办民办职业培训学校的章程")
+        fn_line.append("单位办学应出具举办者的法人资格证明")
+        fn_line.append("拟办民办职业培训学校董事会")
+        fn_line.append("拟聘理论教师实习指导教师的身份学历资格证明材料及复印件")
+        fn_line.append("拟办民办职业培训学校的资产及经费来源的证明文件")
+        fn_line.append("适合用作办公培训和实习场地证明")
+        fn_line.append("房屋安全鉴定机构出具的房屋安全证明")
+        fn_line.append("消防部门出具的办学场所安全证明")
 
-    #
-    # IMP 需要补充另外5个业务线的 材料 明细
-    #
+    elif int(line_id) == 6:
+        # 技工学校筹设行政许可
+        fn_line.append("申请筹设普通技工学校报告")
+        fn_line.append("设立普通技工学校可行性报告及各专业可行性报告")
+
+    elif int(line_id) == 7:
+        # 技工学校设立行政许可
+        fn_line.append("办学经费的验资报告")
+        fn_line.append("属公民个人申请办学的提供民办非企业组织登记机关批准的民办学校名称预审手续")
+        fn_line.append("消防部门出具的房屋安全证明")
+        fn_line.append("房屋安全鉴定机构出具的房屋安全证明")
+
+    for field in fn_line:
+        #print(">>>field:%s<<<" % field)
+        val = get_summary_feild_value(cur_mysql,summary_id,field)
+        #print(">>>val=%s<<<" % val)
+        if val==None or val=="None" or val=="NONE":
+            return False
 
     return True
 

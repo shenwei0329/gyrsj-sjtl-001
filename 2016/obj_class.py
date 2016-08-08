@@ -763,19 +763,19 @@ class System(object):
 
     def _getLineBySn(self,sn):
         if 'RLZYFWXK' in sn:
-            return 0
-        if 'LWPQXK' in sn:
             return 1
-        if 'JYZSP' in sn:
+        if 'LWPQXK' in sn:
             return 2
-        if 'TSGSGZZ' in sn:
+        if 'JYZSP' in sn:
             return 3
-        if 'MBZYPXXX' in sn:
+        if 'TSGSGZZ' in sn:
             return 4
-        if 'JGXXCS' in sn:
+        if 'MBZYPXXX' in sn:
             return 5
-        if 'JGXXSL' in sn:
+        if 'JGXXCS' in sn:
             return 6
+        if 'JGXXSL' in sn:
+            return 7
         return -1
 
     def _toMember(self,member,sn,level):
